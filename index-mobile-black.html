@@ -1,0 +1,749 @@
+<!DOCTYPE html>
+<html lang="es" class="h-full bg-black">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>CAMINANDO JUNTOS | Gestor Móvil CONASAMA</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700;800&family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <!-- Chart.js CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        gold: {
+                            300: '#fde68a',
+                            400: '#fbbf24',
+                            500: '#f59e0b',
+                            600: '#d97706',
+                            metal: '#d4af37',
+                            dark: '#856404'
+                        },
+                        obsidian: {
+                            950: '#0a0a0c',
+                            900: '#121215',
+                            850: '#1a1a1f',
+                            800: '#26262e'
+                        }
+                    },
+                    fontFamily: {
+                        sans: ['"Plus Jakarta Sans"', 'sans-serif'],
+                        cinzel: ['"Cinzel"', 'serif']
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body {
+            -webkit-tap-highlight-color: transparent;
+            overscroll-behavior-y: none;
+        }
+        .safe-bottom {
+            padding-bottom: env(safe-area-inset-bottom, 16px);
+        }
+        .custom-scrollbar::-webkit-scrollbar {
+            display: none;
+        }
+        .custom-scrollbar {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
+    </style>
+</head>
+<body class="h-full font-sans antialiased text-stone-300 bg-black flex justify-center selection:bg-gold-500 selection:text-black">
+
+    <!-- CONTENEDOR APP MÓVIL -->
+    <div class="w-full max-w-md h-full bg-obsidian-950 flex flex-col shadow-2xl relative overflow-hidden border-x border-stone-850">
+
+        <!-- ==================== AUTH SCREEN MÓVIL ==================== -->
+        <div id="m-screen-auth" class="fixed inset-0 z-50 flex flex-col justify-between bg-obsidian-950 text-white p-6 transition-all duration-300 max-w-md mx-auto overflow-y-auto custom-scrollbar border-x border-gold-600/30">
+            
+            <div class="pt-6 text-center space-y-3">
+                <div class="w-16 h-16 bg-gradient-to-tr from-gold-600 to-gold-400 rounded-2xl mx-auto flex items-center justify-center shadow-lg shadow-gold-500/20 text-black text-2xl">
+                    <i class="fa-solid fa-shield-halved"></i>
+                </div>
+                <div>
+                    <h1 class="font-cinzel text-xl font-bold tracking-wider text-gold-300">CAMINANDO JUNTOS</h1>
+                    <p class="text-xs text-stone-400 font-medium">Gestor Móvil CONASAMA / CESMA</p>
+                </div>
+
+                <div class="bg-obsidian-900 p-1.5 rounded-xl border border-stone-800 flex gap-1 text-[11px] font-semibold mt-4">
+                    <button onclick="setAuthRole('admin')" id="m-btn-role-admin" class="flex-1 py-1.5 rounded-lg bg-gold-500 text-black font-bold transition">Admin</button>
+                    <button onclick="setAuthRole('certifier')" id="m-btn-role-cert" class="flex-1 py-1.5 rounded-lg text-stone-400 transition">Revisor</button>
+                    <button onclick="setAuthRole('super')" id="m-btn-role-super" class="flex-1 py-1.5 rounded-lg text-stone-400 transition">SuperAdmin</button>
+                </div>
+            </div>
+
+            <!-- Step 1 Form -->
+            <div id="m-auth-step-1" class="space-y-4 my-auto py-6">
+                <div>
+                    <label class="block text-[10px] font-bold text-gold-400 uppercase mb-1">Centro de Rehabilitación</label>
+                    <select id="m-login-center" class="w-full px-3 py-2.5 bg-obsidian-900 border border-stone-750 rounded-xl text-xs text-stone-200 focus:outline-none focus:border-gold-400">
+                        <option value="CR-001">Caminando Juntos I.A.P. (CJ-0142)</option>
+                        <option value="CR-002">Estancia Residencial "Luz y Esperanza"</option>
+                    </select>
+                </div>
+
+                <div>
+                    <label class="block text-[10px] font-bold text-gold-400 uppercase mb-1">Correo Institucional</label>
+                    <input type="email" id="m-login-email" value="direccion@caminandojuntos.org" class="w-full px-3 py-2.5 bg-obsidian-900 border border-stone-750 rounded-xl text-xs text-stone-200 focus:border-gold-400">
+                </div>
+
+                <div>
+                    <label class="block text-[10px] font-bold text-gold-400 uppercase mb-1">Contraseña</label>
+                    <input type="password" value="••••••••••••" class="w-full px-3 py-2.5 bg-obsidian-900 border border-stone-750 rounded-xl text-xs text-stone-200 focus:border-gold-400">
+                </div>
+
+                <button onclick="mGoTo2FA()" class="w-full bg-gradient-to-r from-gold-500 to-gold-600 hover:from-gold-400 hover:to-gold-500 text-black font-bold py-3 px-4 rounded-xl text-xs uppercase tracking-wider shadow-lg shadow-gold-500/20 transition flex items-center justify-center gap-2 mt-2">
+                    <span>Continuar Autenticación</span>
+                    <i class="fa-solid fa-arrow-right text-xs"></i>
+                </button>
+            </div>
+
+            <!-- Step 2: 2FA Token -->
+            <div id="m-auth-step-2" class="space-y-4 my-auto py-6 hidden text-center">
+                <div class="w-12 h-12 bg-gold-500/10 text-gold-400 border border-gold-500/30 rounded-full flex items-center justify-center mx-auto text-xl">
+                    <i class="fa-solid fa-key"></i>
+                </div>
+                <h3 class="font-cinzel font-bold text-base text-gold-300">Validación NOM-004</h3>
+                <p class="text-[11px] text-stone-400">Ingresa el token de seguridad temporal[cite: 5].</p>
+
+                <div class="flex justify-center gap-2 my-4">
+                    <input type="text" maxlength="1" value="8" class="w-10 h-12 text-center text-lg font-bold bg-obsidian-900 border border-gold-500/40 text-gold-300 rounded-xl">
+                    <input type="text" maxlength="1" value="3" class="w-10 h-12 text-center text-lg font-bold bg-obsidian-900 border border-gold-500/40 text-gold-300 rounded-xl">
+                    <input type="text" maxlength="1" value="1" class="w-10 h-12 text-center text-lg font-bold bg-obsidian-900 border border-gold-500/40 text-gold-300 rounded-xl">
+                    <input type="text" maxlength="1" value="9" class="w-10 h-12 text-center text-lg font-bold bg-obsidian-900 border border-gold-500/40 text-gold-300 rounded-xl">
+                </div>
+
+                <button onclick="mCompleteAuth()" class="w-full bg-gold-500 hover:bg-gold-400 text-black font-bold py-3 rounded-xl text-xs uppercase tracking-wider transition">
+                    Verificar e Ingresar
+                </button>
+
+                <button onclick="mBackToStep1()" class="text-xs text-stone-400 pt-2 block mx-auto">
+                    <i class="fa-solid fa-chevron-left mr-1"></i> Regresar
+                </button>
+            </div>
+
+            <div class="text-center text-[10px] text-stone-500 border-t border-stone-800 pt-3">
+                <i class="fa-solid fa-lock text-gold-500 mr-1"></i> Expedientes Clínicos Protegidos
+            </div>
+        </div>
+
+        <!-- ==================== APP HEADER MÓVIL ==================== -->
+        <header class="bg-obsidian-900 text-stone-200 px-4 py-3 shrink-0 flex items-center justify-between border-b border-gold-700/20 z-30 shadow-md">
+            <div class="flex items-center gap-2.5">
+                <button onclick="toggleMobileDrawer()" class="w-8 h-8 rounded-xl bg-obsidian-800 border border-stone-700 flex items-center justify-center text-gold-400">
+                    <i class="fa-solid fa-bars text-sm"></i>
+                </button>
+                <div>
+                    <h2 class="font-cinzel font-bold text-xs text-gold-300 leading-tight">CAMINANDO JUNTOS</h2>
+                    <p id="m-header-role" class="text-[10px] text-stone-400 font-semibold truncate max-w-[170px]">Admin Centro • Sede Central</p>
+                </div>
+            </div>
+
+            <div class="flex items-center gap-2">
+                <button onclick="openUploadMobile('Camera')" class="w-8 h-8 rounded-xl bg-gradient-to-br from-gold-400 to-gold-600 text-black flex items-center justify-center shadow-md text-xs active:scale-90 transition font-bold" title="Tomar Foto">
+                    <i class="fa-solid fa-camera"></i>
+                </button>
+                <button onclick="toggleAuthModalMobile()" class="w-8 h-8 rounded-xl bg-obsidian-800 border border-stone-700 text-stone-400 flex items-center justify-center text-xs">
+                    <i class="fa-solid fa-user-gear"></i>
+                </button>
+            </div>
+        </header>
+
+        <!-- ==================== DRAWER LATERAL ==================== -->
+        <div id="m-drawer" class="fixed inset-0 z-40 bg-black/80 backdrop-blur-xs transition-opacity duration-300 hidden max-w-md mx-auto" onclick="toggleMobileDrawer()">
+            <div class="w-4/5 max-w-xs h-full bg-obsidian-900 text-stone-300 p-5 flex flex-col justify-between shadow-2xl border-r border-gold-600/30" onclick="event.stopPropagation()">
+                <div>
+                    <div class="flex items-center justify-between pb-4 border-b border-stone-800">
+                        <div class="flex items-center gap-2">
+                            <div class="w-9 h-9 bg-gold-500 rounded-xl flex items-center justify-center font-bold text-black text-sm">CJ</div>
+                            <div>
+                                <h3 class="font-cinzel font-bold text-xs text-gold-300">Mapa del Sitio</h3>
+                                <span class="text-[10px] text-stone-400">Cédula Oficial CONASAMA[cite: 1]</span>
+                            </div>
+                        </div>
+                        <button onclick="toggleMobileDrawer()" class="text-stone-400 hover:text-white text-sm">
+                            <i class="fa-solid fa-xmark"></i>
+                        </button>
+                    </div>
+
+                    <nav class="mt-4 space-y-1.5 overflow-y-auto max-h-[60vh] custom-scrollbar text-xs">
+                        <button onclick="mSwitchTab('home'); toggleMobileDrawer();" class="w-full flex items-center gap-3 p-2.5 rounded-xl bg-gold-500/10 text-gold-300 font-bold border border-gold-500/30">
+                            <i class="fa-solid fa-chart-pie w-4 text-center text-gold-400"></i>
+                            <span>Resumen de Ponderación</span>
+                        </button>
+                        <button onclick="mSwitchTab('sim'); toggleMobileDrawer();" class="w-full flex items-center justify-between p-2.5 rounded-xl hover:bg-obsidian-800 text-stone-300">
+                            <div class="flex items-center gap-3">
+                                <i class="fa-solid fa-award w-4 text-center text-gold-400"></i>
+                                <span>Simulador de Certificación</span>
+                            </div>
+                            <span class="text-[9px] bg-gold-500 text-black font-bold px-1.5 py-0.5 rounded">100%</span>
+                        </button>
+                        <button onclick="mSwitchTab('modules'); toggleMobileDrawer();" class="w-full flex items-center gap-3 p-2.5 rounded-xl hover:bg-obsidian-800 text-stone-300">
+                            <i class="fa-solid fa-list-check w-4 text-center text-gold-400"></i>
+                            <span>Módulos de la Cédula (1 al 8)[cite: 1]</span>
+                        </button>
+                        <button onclick="mSwitchTab('files'); toggleMobileDrawer();" class="w-full flex items-center gap-3 p-2.5 rounded-xl hover:bg-obsidian-800 text-stone-300">
+                            <i class="fa-solid fa-vault w-4 text-center text-gold-400"></i>
+                            <span>Bóveda de Evidencias Digitales</span>
+                        </button>
+                    </nav>
+                </div>
+
+                <div class="pt-4 border-t border-stone-800 text-[11px]">
+                    <div class="flex items-center justify-between">
+                        <div class="truncate">
+                            <p class="font-bold text-stone-200 truncate" id="m-drawer-username">Lic. Roberto Garza</p>
+                            <p class="text-gold-400 text-[10px]" id="m-drawer-rolename">Director de Centro</p>
+                        </div>
+                        <button onclick="toggleAuthModalMobile(); toggleMobileDrawer();" class="text-stone-400 p-2">
+                            <i class="fa-solid fa-power-off"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ==================== VISTAS SCROLLABLES ==================== -->
+        <main class="flex-1 overflow-y-auto p-4 space-y-4 custom-scrollbar pb-24">
+
+            <!-- TAB 1: RESUMEN -->
+            <div id="m-tab-home" class="space-y-4">
+                <div class="bg-gradient-to-br from-stone-900 via-obsidian-900 to-obsidian-950 p-5 rounded-2xl shadow-xl border border-gold-600/40 relative overflow-hidden">
+                    <div class="flex justify-between items-start">
+                        <div>
+                            <span class="text-[10px] uppercase font-bold tracking-widest text-gold-400">Puntaje Oficial Estimado</span>
+                            <div class="flex items-baseline gap-2 mt-1">
+                                <h2 class="text-4xl font-cinzel font-black text-gold-300" id="m-dash-score">88.0%</h2>
+                                <span class="text-xs text-emerald-400 font-bold"><i class="fa-solid fa-circle-check"></i> Aprobatorio</span>
+                            </div>
+                        </div>
+                        <div class="w-11 h-11 bg-gold-500/10 border border-gold-500/30 rounded-xl flex items-center justify-center text-xl text-gold-400">
+                            <i class="fa-solid fa-award"></i>
+                        </div>
+                    </div>
+
+                    <div class="w-full bg-obsidian-800 rounded-full h-2 mt-4 overflow-hidden border border-stone-800">
+                        <div id="m-dash-progress-bar" class="bg-gradient-to-r from-gold-500 to-gold-300 h-2 rounded-full" style="width: 88%"></div>
+                    </div>
+
+                    <div class="flex justify-between items-center text-[10px] text-stone-400 mt-2 font-medium">
+                        <span>Criterios Obligatorios: <strong class="text-gold-300">12/12</strong>[cite: 1]</span>
+                        <span>Mínimo requerido: 80%</span>
+                    </div>
+                </div>
+
+                <!-- Botones Acción Touch -->
+                <div class="grid grid-cols-2 gap-3">
+                    <button onclick="openUploadMobile('Camera')" class="bg-obsidian-900 p-3.5 rounded-2xl border border-stone-800 shadow-md flex items-center gap-3 active:bg-obsidian-850 transition text-left">
+                        <div class="w-9 h-9 rounded-xl bg-gold-500/10 border border-gold-500/30 text-gold-400 flex items-center justify-center text-sm shrink-0">
+                            <i class="fa-solid fa-camera"></i>
+                        </div>
+                        <div>
+                            <p class="text-xs font-bold text-stone-200">Tomar Foto</p>
+                            <p class="text-[10px] text-stone-400">Evidencia física[cite: 2]</p>
+                        </div>
+                    </button>
+
+                    <button onclick="mSwitchTab('sim')" class="bg-obsidian-900 p-3.5 rounded-2xl border border-stone-800 shadow-md flex items-center gap-3 active:bg-obsidian-850 transition text-left">
+                        <div class="w-9 h-9 rounded-xl bg-gold-500/10 border border-gold-500/30 text-gold-400 flex items-center justify-center text-sm shrink-0">
+                            <i class="fa-solid fa-award"></i>
+                        </div>
+                        <div>
+                            <p class="text-xs font-bold text-stone-200">Simulador</p>
+                            <p class="text-[10px] text-stone-400">Evaluar Cédula[cite: 1]</p>
+                        </div>
+                    </button>
+                </div>
+
+                <!-- Gráfica Ponderación Móvil -->
+                <div class="bg-obsidian-900 p-4 rounded-2xl border border-stone-800 shadow-md space-y-3">
+                    <div class="flex justify-between items-center">
+                        <h3 class="font-cinzel font-bold text-xs text-gold-300">Ponderación por Módulo</h3>
+                        <span class="text-[10px] font-bold text-gold-400 bg-gold-500/10 border border-gold-500/30 px-2 py-0.5 rounded-full">100% Total[cite: 1, 2]</span>
+                    </div>
+                    <div class="h-44 relative">
+                        <canvas id="mWeightingChart"></canvas>
+                    </div>
+                </div>
+            </div>
+
+            <!-- TAB 2: SIMULADOR -->
+            <div id="m-tab-sim" class="space-y-4 hidden">
+                <div class="bg-obsidian-900 text-stone-200 p-4 rounded-2xl border border-gold-600/40 shadow-md space-y-2">
+                    <div class="flex justify-between items-center">
+                        <span class="text-[10px] bg-gold-500 text-black font-bold px-2 py-0.5 rounded">MODO AUDITORÍA</span>
+                        <span class="text-[10px] bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 font-bold px-2 py-0.5 rounded-full">APROBATORIO</span>
+                    </div>
+                    <div class="flex justify-between items-baseline">
+                        <div>
+                            <h3 class="font-cinzel font-bold text-sm text-gold-300">Simulación Oficial</h3>
+                            <p class="text-[10px] text-stone-400">Verificación de Cédula CONASAMA[cite: 1]</p>
+                        </div>
+                        <div class="text-3xl font-cinzel font-black text-gold-300" id="m-sim-score-num">88.0%</div>
+                    </div>
+                </div>
+
+                <button onclick="openDictamenMobile()" class="w-full bg-gradient-to-r from-gold-500 to-gold-600 hover:from-gold-400 hover:to-gold-500 text-black font-bold py-2.5 px-4 rounded-xl text-xs shadow-lg uppercase tracking-wider transition flex items-center justify-center gap-2">
+                    <i class="fa-solid fa-file-pdf"></i>
+                    <span>Ver Dictamen Oficial</span>
+                </button>
+
+                <div class="space-y-2.5" id="m-sim-checklist-container">
+                    <!-- Rendered by JS -->
+                </div>
+            </div>
+
+            <!-- TAB 3: MÓDULOS -->
+            <div id="m-tab-modules" class="space-y-3 hidden">
+                <div class="bg-obsidian-900 p-4 rounded-2xl border border-stone-800 mb-3">
+                    <h3 class="font-cinzel font-bold text-xs text-gold-300">Módulos Oficiales de la Cédula</h3>
+                    <p class="text-[10px] text-stone-400">Toque un módulo para adjuntar y visualizar evidencias[cite: 1, 2].</p>
+                </div>
+                <div class="space-y-2" id="m-modules-list-container">
+                    <!-- Rendered by JS -->
+                </div>
+            </div>
+
+            <!-- TAB 4: BÓVEDA -->
+            <div id="m-tab-files" class="space-y-3 hidden">
+                <div class="bg-obsidian-900 p-4 rounded-2xl border border-stone-800 flex justify-between items-center">
+                    <div>
+                        <h3 class="font-cinzel font-bold text-xs text-gold-300">Bóveda de Evidencias</h3>
+                        <p class="text-[10px] text-stone-400">Expedientes y fotografías[cite: 2, 5]</p>
+                    </div>
+                    <button onclick="openUploadMobile('File')" class="bg-gold-500 text-black text-xs px-3 py-1.5 rounded-xl font-bold flex items-center gap-1.5 shadow-sm">
+                        <i class="fa-solid fa-plus"></i> Subir
+                    </button>
+                </div>
+                <div class="space-y-2" id="m-files-container">
+                    <!-- Rendered by JS -->
+                </div>
+            </div>
+
+        </main>
+
+        <!-- ==================== BOTTOM NAV BAR ==================== -->
+        <nav class="absolute bottom-0 inset-x-0 bg-obsidian-950/95 backdrop-blur-md border-t border-stone-800 px-4 py-2 flex justify-around items-center z-30 safe-bottom">
+            <button onclick="mSwitchTab('home')" id="m-nav-home" class="flex flex-col items-center gap-1 text-gold-400 transition">
+                <i class="fa-solid fa-chart-pie text-lg"></i>
+                <span class="text-[9px] font-bold uppercase tracking-wider">Resumen</span>
+            </button>
+
+            <button onclick="mSwitchTab('sim')" id="m-nav-sim" class="flex flex-col items-center gap-1 text-stone-500 hover:text-gold-400 transition">
+                <i class="fa-solid fa-award text-lg"></i>
+                <span class="text-[9px] font-bold uppercase tracking-wider">Simulador</span>
+            </button>
+
+            <!-- Floating Action Button -->
+            <button onclick="openUploadMobile('Direct')" class="w-12 h-12 -mt-5 bg-gradient-to-tr from-gold-600 via-gold-500 to-gold-400 text-black rounded-full flex items-center justify-center shadow-lg shadow-gold-500/30 active:scale-90 transition border-2 border-black font-bold">
+                <i class="fa-solid fa-cloud-arrow-up text-base"></i>
+            </button>
+
+            <button onclick="mSwitchTab('modules')" id="m-nav-modules" class="flex flex-col items-center gap-1 text-stone-500 hover:text-gold-400 transition">
+                <i class="fa-solid fa-folder-tree text-lg"></i>
+                <span class="text-[9px] font-bold uppercase tracking-wider">Módulos</span>
+            </button>
+
+            <button onclick="mSwitchTab('files')" id="m-nav-files" class="flex flex-col items-center gap-1 text-stone-500 hover:text-gold-400 transition">
+                <i class="fa-solid fa-vault text-lg"></i>
+                <span class="text-[9px] font-bold uppercase tracking-wider">Bóveda</span>
+            </button>
+        </nav>
+
+        <!-- ==================== MODAL UPLOAD MÓVIL ==================== -->
+        <div id="m-modal-upload" class="fixed inset-0 z-50 bg-black/80 backdrop-blur-xs flex flex-col justify-end hidden max-w-md mx-auto">
+            <div class="bg-obsidian-900 rounded-t-3xl p-6 space-y-4 shadow-2xl border-t border-gold-600/40">
+                <div class="flex justify-between items-center pb-2 border-b border-stone-800">
+                    <h3 class="font-cinzel font-bold text-sm text-gold-300 flex items-center gap-2">
+                        <i class="fa-solid fa-camera text-gold-400"></i>
+                        <span>Adjuntar Evidencia Digital</span>
+                    </h3>
+                    <button onclick="closeUploadMobile()" class="w-8 h-8 rounded-full bg-obsidian-800 text-stone-400 flex items-center justify-center">
+                        <i class="fa-solid fa-xmark text-sm"></i>
+                    </button>
+                </div>
+
+                <div class="space-y-3 text-xs">
+                    <div>
+                        <label class="block font-bold text-gold-400 uppercase text-[10px] mb-1">Módulo Cédula:</label>
+                        <select id="m-upload-sec" class="w-full bg-obsidian-800 border border-stone-700 rounded-xl p-2.5 text-xs text-stone-200">
+                            <option value="Infraestructura">2. Infraestructura & Servicios (25%)[cite: 1]</option>
+                            <option value="Organización">3. Organización & Licencias (10%)[cite: 1]</option>
+                            <option value="Recursos Humanos">4. Recursos Humanos & Cédulas (20%)[cite: 1]</option>
+                            <option value="Acompañamiento">5-6. Ingreso & Clínica (30%)[cite: 1]</option>
+                            <option value="Alimentación">8. Menús & Quejas (15%)[cite: 1]</option>
+                        </select>
+                    </div>
+
+                    <div>
+                        <label class="block font-bold text-gold-400 uppercase text-[10px] mb-1">Descripción del Archivo:</label>
+                        <input type="text" id="m-upload-name" placeholder="Ej. Foto Dormitorios o Recetario Médico" class="w-full bg-obsidian-800 border border-stone-700 rounded-xl p-2.5 text-xs text-stone-200">
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-3 pt-1">
+                        <button onclick="mSimulateCapture('camera')" class="p-3 bg-gold-500/10 border border-gold-500/30 rounded-xl flex flex-col items-center gap-1.5 text-gold-400 active:bg-gold-500/20 transition">
+                            <i class="fa-solid fa-camera text-xl"></i>
+                            <span class="font-bold text-[11px]">Abrir Cámara</span>
+                        </button>
+                        <button onclick="mSimulateCapture('gallery')" class="p-3 bg-obsidian-800 border border-stone-700 rounded-xl flex flex-col items-center gap-1.5 text-stone-300 active:bg-stone-700 transition">
+                            <i class="fa-solid fa-folder-open text-xl"></i>
+                            <span class="font-bold text-[11px]">Bóveda PDF</span>
+                        </button>
+                    </div>
+                </div>
+
+                <div class="pt-2">
+                    <button onclick="mConfirmUpload()" class="w-full bg-gradient-to-r from-gold-500 to-gold-600 text-black font-bold py-3 rounded-xl text-xs uppercase tracking-wider shadow-lg shadow-gold-500/20">
+                        Guardar y Enviar a Supervisión
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- ==================== MODAL DICTAMEN MÓVIL ==================== -->
+        <div id="m-modal-dictamen" class="fixed inset-0 z-50 bg-black/85 backdrop-blur-xs p-4 flex flex-col justify-center hidden max-w-md mx-auto">
+            <div class="bg-obsidian-900 rounded-2xl p-5 space-y-4 max-h-[85vh] overflow-y-auto custom-scrollbar shadow-2xl border border-gold-600/40 text-xs text-stone-300">
+                <div class="flex justify-between items-center border-b border-stone-800 pb-3">
+                    <div>
+                        <span class="text-[9px] font-bold text-gold-400 uppercase tracking-widest">CONASAMA / CESMA</span>
+                        <h3 class="font-cinzel font-bold text-sm text-stone-100">Acta de Dictamen Oficial</h3>
+                    </div>
+                    <button onclick="closeDictamenMobile()" class="w-7 h-7 bg-obsidian-800 rounded-full flex items-center justify-center text-stone-400">
+                        <i class="fa-solid fa-xmark text-xs"></i>
+                    </button>
+                </div>
+
+                <div class="bg-gold-500/10 border border-gold-500/30 p-4 rounded-xl text-center space-y-1">
+                    <span class="text-[9px] font-bold text-gold-400 uppercase tracking-widest">Puntaje Final</span>
+                    <div class="text-2xl font-cinzel font-black text-gold-300" id="m-modal-score">88.0% CUMPLIMIENTO</div>
+                    <p class="text-[10px] font-bold text-emerald-400">ESTADO: ACREDITADO OFICIALMENTE</p>
+                </div>
+
+                <div class="bg-obsidian-850 p-3 rounded-xl space-y-1 text-[11px] border border-stone-800">
+                    <p><strong class="text-gold-300">Centro:</strong> Caminando Juntos I.A.P.</p>
+                    <p><strong class="text-gold-300">Folio:</strong> CONASAMA-2026-CJ88</p>
+                    <p><strong class="text-gold-300">Camas:</strong> 40 Instaladas (32 Ocupadas)[cite: 1]</p>
+                </div>
+
+                <div class="border-t border-dashed border-stone-800 pt-3 text-center text-[10px]">
+                    <div class="w-24 h-1 bg-gold-500 mx-auto mb-1"></div>
+                    <p class="font-bold text-stone-200">Dr. Fernando Morales</p>
+                    <p class="text-stone-500">Supervisor Certificador CONASAMA</p>
+                </div>
+
+                <div class="flex gap-2 pt-2">
+                    <button onclick="window.print()" class="flex-1 bg-gradient-to-r from-gold-500 to-gold-600 text-black font-bold py-2.5 rounded-xl text-xs flex items-center justify-center gap-2">
+                        <i class="fa-solid fa-print"></i> Imprimir / PDF
+                    </button>
+                    <button onclick="closeDictamenMobile()" class="px-4 py-2.5 bg-obsidian-800 text-stone-300 font-bold rounded-xl text-xs">
+                        Cerrar
+                    </button>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- MOBILE LOGIC -->
+    <script>
+        const mState = {
+            role: 'admin',
+            activeTab: 'home',
+            checklist: [
+                { id: '1.3', sec: 'Infraestructura', name: 'Consultorio Médico Equipado (100% NOM)', weight: 5.0, max: 5.0, mandatory: true, check: true },
+                { id: '1.7', sec: 'Infraestructura', name: 'Dormitorios por Sexo (Sin Hacinamiento)', weight: 10.0, max: 10.0, mandatory: true, check: true },
+                { id: '1.8', sec: 'Infraestructura', name: 'Sanitarios Suficientes (1 por cada 8 pers.)', weight: 6.5, max: 8.0, mandatory: true, check: true },
+                { id: '3.1', sec: 'Organización', name: 'Aviso de Funcionamiento / Licencia Sanitaria', weight: 3.0, max: 3.0, mandatory: true, check: true },
+                { id: '3.9', sec: 'Organización', name: 'Cartel de Derechos del Usuario Visible', weight: 2.0, max: 3.0, mandatory: true, check: true },
+                { id: '4.2', sec: 'Recursos Humanos', name: 'Cédula Profesional del Médico Titular', weight: 8.0, max: 8.0, mandatory: true, check: true },
+                { id: '4.3', sec: 'Recursos Humanos', name: 'Capacitación en Adicciones (Consejeros)', weight: 10.0, max: 12.0, mandatory: false, check: true },
+                { id: '5.1', sec: 'Acompañamiento', name: 'Consentimiento Voluntario y Costos Claros', weight: 10.0, max: 10.0, mandatory: true, check: true },
+                { id: '5.2', sec: 'Acompañamiento', name: 'Historia Clínica dentro de las 24 hrs', weight: 10.0, max: 10.0, mandatory: true, check: true },
+                { id: '2.1', sec: 'Alimentación', name: 'Menús Balanceados y Agua Potable', weight: 9.5, max: 10.0, mandatory: true, check: true },
+                { id: '6.1', sec: 'Quejas', name: 'Buzón de Quejas y Apertura Mensual', weight: 5.0, max: 5.0, mandatory: false, check: true }
+            ],
+            modules: [
+                { id: 1, title: '1. Identificación & Registro', weight: '0%', icon: 'fa-address-card', count: '4 Docs' },
+                { id: 2, title: '2. Infraestructura & Servicios', weight: '25%', icon: 'fa-building-hospital', count: '8 Fotos/Planos' },
+                { id: 3, title: '3. Organización & Licencias', weight: '10%', icon: 'fa-file-contract', count: '5 Licencias' },
+                { id: 4, title: '4. Recursos Humanos & Cédulas', weight: '20%', icon: 'fa-user-doctor', count: '6 Cédulas' },
+                { id: 5, title: '5. Ingreso de Usuarios (Pt. 1)', weight: '15%', icon: 'fa-notes-medical', count: '12 Formatos' },
+                { id: 6, title: '6. Acompañamiento & Clínica', weight: '15%', icon: 'fa-heart-pulse', count: '9 Bitácoras' },
+                { id: 7, title: '7. Egreso y Seguimiento', weight: '0%', icon: 'fa-clipboard-user', count: '4 Reportes' },
+                { id: 8, title: '8. Alimentación & Quejas', weight: '15%', icon: 'fa-utensils', count: '3 Menús/Buzón' }
+            ],
+            files: [
+                { name: 'Foto_Dormitorios_Hombres.jpg', sec: 'Infraestructura', size: '3.4 MB', type: 'JPG', date: 'Hoy' },
+                { name: 'Licencia_Sanitaria_2026.pdf', sec: 'Organización', size: '1.2 MB', type: 'PDF', date: 'Ayer' },
+                { name: 'Cedula_Medico_Titular.pdf', sec: 'Recursos Humanos', size: '820 KB', type: 'PDF', date: '12 Ago' },
+                { name: 'Consentimiento_Voluntario.pdf', sec: 'Acompañamiento', size: '2.1 MB', type: 'PDF', date: '08 Ago' },
+                { name: 'Bitacora_Buzon_Quejas.xlsx', sec: 'Quejas', size: '350 KB', type: 'XLSX', date: '01 Ago' }
+            ]
+        };
+
+        function setAuthRole(role) {
+            mState.role = role;
+            ['admin', 'cert', 'super'].forEach(r => {
+                const btn = document.getElementById('m-btn-role-' + r);
+                btn.className = "flex-1 py-1.5 rounded-lg text-stone-400 transition";
+            });
+            if(role === 'admin') document.getElementById('m-btn-role-admin').className = "flex-1 py-1.5 rounded-lg bg-gold-500 text-black font-bold transition";
+            if(role === 'certifier') document.getElementById('m-btn-role-cert').className = "flex-1 py-1.5 rounded-lg bg-amber-500 text-black font-bold transition";
+            if(role === 'super') document.getElementById('m-btn-role-super').className = "flex-1 py-1.5 rounded-lg bg-stone-700 text-gold-300 font-bold transition";
+        }
+
+        function mGoTo2FA() {
+            document.getElementById('m-auth-step-1').classList.add('hidden');
+            document.getElementById('m-auth-step-2').classList.remove('hidden');
+        }
+
+        function mBackToStep1() {
+            document.getElementById('m-auth-step-2').classList.add('hidden');
+            document.getElementById('m-auth-step-1').classList.remove('hidden');
+        }
+
+        function mCompleteAuth() {
+            document.getElementById('m-screen-auth').classList.add('hidden');
+            updateUserUI();
+            renderSimChecklist();
+            renderModulesList();
+            renderFilesList();
+            initMobileChart();
+        }
+
+        function toggleAuthModalMobile() {
+            document.getElementById('m-screen-auth').classList.toggle('hidden');
+        }
+
+        function updateUserUI() {
+            const hRole = document.getElementById('m-header-role');
+            const dUser = document.getElementById('m-drawer-username');
+            const dRole = document.getElementById('m-drawer-rolename');
+
+            if (mState.role === 'admin') {
+                hRole.innerText = "Admin Centro • Sede Central";
+                dUser.innerText = "Lic. Roberto Garza";
+                dRole.innerText = "Director de Establecimiento";
+            } else if (mState.role === 'certifier') {
+                hRole.innerText = "Revisor CONASAMA • Inspector";
+                dUser.innerText = "Dr. Fernando Morales";
+                dRole.innerText = "Supervisor Oficial CESMA";
+            } else {
+                hRole.innerText = "SuperAdmin • Red Centros";
+                dUser.innerText = "Mtra. Elena Salgado";
+                dRole.innerText = "Coordinación General";
+            }
+        }
+
+        function mSwitchTab(tabName) {
+            mState.activeTab = tabName;
+            ['home', 'sim', 'modules', 'files'].forEach(t => {
+                document.getElementById('m-tab-' + t).classList.add('hidden');
+                const btn = document.getElementById('m-nav-' + t);
+                if (btn) {
+                    btn.classList.remove('text-gold-400');
+                    btn.classList.add('text-stone-500');
+                }
+            });
+
+            document.getElementById('m-tab-' + tabName).classList.remove('hidden');
+            const activeBtn = document.getElementById('m-nav-' + tabName);
+            if (activeBtn) {
+                activeBtn.classList.remove('text-stone-500');
+                activeBtn.classList.add('text-gold-400');
+            }
+        }
+
+        function toggleMobileDrawer() {
+            document.getElementById('m-drawer').classList.toggle('hidden');
+        }
+
+        function renderSimChecklist() {
+            const container = document.getElementById('m-sim-checklist-container');
+            container.innerHTML = '';
+
+            let score = 0;
+            let maxTotal = 0;
+
+            mState.checklist.forEach((item, idx) => {
+                maxTotal += item.max;
+                if (item.check) score += item.weight;
+
+                const card = document.createElement('div');
+                card.className = "bg-obsidian-900 p-3.5 rounded-xl border border-stone-800 shadow-md flex items-center justify-between gap-3";
+                card.innerHTML = `
+                    <div class="flex items-start gap-3 min-w-0">
+                        <input type="checkbox" ${item.check ? 'checked' : ''} onchange="toggleMCheck(${idx})" class="w-5 h-5 mt-0.5 text-gold-500 accent-gold-500 rounded cursor-pointer shrink-0">
+                        <div class="min-w-0">
+                            <h4 class="font-bold text-xs text-stone-200 truncate">${item.name}</h4>
+                            <div class="flex items-center gap-2 text-[10px] text-stone-400 mt-0.5">
+                                <span>${item.sec}</span>
+                                ${item.mandatory ? '<span class="bg-rose-950 border border-rose-600/40 text-rose-300 font-bold px-1 rounded text-[9px]">OBLIGATORIO</span>' : ''}
+                            </div>
+                        </div>
+                    </div>
+                    <span class="font-bold text-xs ${item.check ? 'text-gold-400' : 'text-stone-500'} shrink-0">${item.check ? item.weight.toFixed(1) : '0.0'} pts</span>
+                `;
+                container.appendChild(card);
+            });
+
+            const pct = ((score / maxTotal) * 100).toFixed(1);
+            document.getElementById('m-sim-score-num').innerText = pct + '%';
+            document.getElementById('m-dash-score').innerText = pct + '%';
+            document.getElementById('m-dash-progress-bar').style.width = pct + '%';
+            document.getElementById('m-modal-score').innerText = pct + '% CUMPLIMIENTO';
+        }
+
+        function toggleMCheck(idx) {
+            mState.checklist[idx].check = !mState.checklist[idx].check;
+            renderSimChecklist();
+            updateMobileChart();
+        }
+
+        function renderModulesList() {
+            const container = document.getElementById('m-modules-list-container');
+            container.innerHTML = '';
+
+            mState.modules.forEach(m => {
+                const card = document.createElement('div');
+                card.className = "bg-obsidian-900 p-3.5 rounded-xl border border-stone-800 shadow-md flex items-center justify-between active:scale-[0.98] transition cursor-pointer";
+                card.onclick = () => {
+                    openUploadMobile('Module');
+                    document.getElementById('m-upload-name').value = 'Evidencia_' + m.title.replace(/\s+/g, '_');
+                };
+                card.innerHTML = `
+                    <div class="flex items-center gap-3">
+                        <div class="w-10 h-10 rounded-xl bg-gold-500/10 border border-gold-500/30 text-gold-400 flex items-center justify-center text-sm shrink-0">
+                            <i class="fa-solid ${m.icon}"></i>
+                        </div>
+                        <div>
+                            <h4 class="font-bold text-xs text-stone-200">${m.title}</h4>
+                            <p class="text-[10px] text-stone-400">${m.count} en bóveda</p>
+                        </div>
+                    </div>
+                    <span class="text-[10px] font-bold bg-obsidian-800 text-gold-400 border border-stone-700 px-2 py-1 rounded-lg">${m.weight}</span>
+                `;
+                container.appendChild(card);
+            });
+        }
+
+        function renderFilesList() {
+            const container = document.getElementById('m-files-container');
+            container.innerHTML = '';
+
+            mState.files.forEach(f => {
+                const card = document.createElement('div');
+                card.className = "bg-obsidian-900 p-3 rounded-xl border border-stone-800 shadow-md flex items-center justify-between gap-2";
+                card.innerHTML = `
+                    <div class="flex items-center gap-2.5 min-w-0">
+                        <div class="w-8 h-8 rounded-lg bg-gold-500/10 border border-gold-500/30 text-gold-400 flex items-center justify-center text-xs shrink-0 font-bold">
+                            <i class="fa-solid ${f.type === 'PDF' ? 'fa-file-pdf text-rose-400' : f.type === 'JPG' ? 'fa-image text-emerald-400' : 'fa-file-excel text-emerald-500'}"></i>
+                        </div>
+                        <div class="min-w-0">
+                            <h4 class="font-bold text-xs text-stone-200 truncate" title="${f.name}">${f.name}</h4>
+                            <p class="text-[10px] text-stone-400">${f.sec} • ${f.size}</p>
+                        </div>
+                    </div>
+                    <button onclick="alert('Abriendo visor seguro...')" class="text-gold-400 text-xs font-bold px-2 py-1">
+                        <i class="fa-solid fa-eye"></i>
+                    </button>
+                `;
+                container.appendChild(card);
+            });
+        }
+
+        function openUploadMobile(mode) {
+            document.getElementById('m-modal-upload').classList.remove('hidden');
+        }
+
+        function closeUploadMobile() {
+            document.getElementById('m-modal-upload').classList.add('hidden');
+        }
+
+        function mSimulateCapture(type) {
+            if (type === 'camera') {
+                alert('📸 Accediendo a cámara...');
+                document.getElementById('m-upload-name').value = 'Foto_Captura_' + Math.floor(Math.random()*1000) + '.jpg';
+            } else {
+                alert('📂 Abriendo selector de archivos...');
+                document.getElementById('m-upload-name').value = 'Expediente_' + Math.floor(Math.random()*1000) + '.pdf';
+            }
+        }
+
+        function mConfirmUpload() {
+            const name = document.getElementById('m-upload-name').value || 'Nueva_Evidencia.pdf';
+            const sec = document.getElementById('m-upload-sec').value;
+
+            mState.files.unshift({
+                name: name,
+                sec: sec,
+                size: '2.1 MB',
+                type: name.endsWith('.jpg') ? 'JPG' : 'PDF',
+                date: 'Hoy'
+            });
+
+            renderFilesList();
+            closeUploadMobile();
+            mSwitchTab('files');
+            alert('¡Evidencia encriptada y guardada en Bóveda!');
+        }
+
+        function openDictamenMobile() {
+            document.getElementById('m-modal-dictamen').classList.remove('hidden');
+        }
+
+        function closeDictamenMobile() {
+            document.getElementById('m-modal-dictamen').classList.add('hidden');
+        }
+
+        let mChart = null;
+        function initMobileChart() {
+            const ctx = document.getElementById('mWeightingChart').getContext('2d');
+            mChart = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: ['Acompañ.', 'Infra.', 'RRHH', 'Org.', 'Alim.', 'Quejas'],
+                    datasets: [{
+                        data: [27, 23.5, 18, 8, 9.5, 5],
+                        backgroundColor: ['#d4af37', '#f59e0b', '#fbbf24', '#b45309', '#eab308', '#78350f'],
+                        borderRadius: 6
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { display: false } },
+                    scales: {
+                        y: { beginAtZero: true, max: 30, ticks: { font: { size: 9 }, color: '#78716c' }, grid: { color: '#1c1917' } },
+                        x: { ticks: { font: { size: 9 }, color: '#d4af37' }, grid: { display: false } }
+                    }
+                }
+            });
+        }
+
+        function updateMobileChart() {
+            if (mChart) mChart.update();
+        }
+
+        window.onload = () => {
+            updateUserUI();
+            renderSimChecklist();
+            renderModulesList();
+            renderFilesList();
+            initMobileChart();
+        };
+    </script>
+</body>
+</html>

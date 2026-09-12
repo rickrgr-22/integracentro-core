@@ -1,0 +1,1092 @@
+<!DOCTYPE html>
+<html lang="es" class="h-full bg-stone-950">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CAMINANDO JUNTOS | Portal de Gestión Documental y Certificación CONASAMA</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;600;700;800&family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <!-- Chart.js CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        gold: {
+                            50: '#fffbeb',
+                            100: '#fef3c7',
+                            200: '#fde68a',
+                            300: '#fcd34d',
+                            400: '#fbbf24',
+                            500: '#f59e0b',
+                            600: '#d97706',
+                            700: '#b45309',
+                            800: '#92400e',
+                            900: '#78350f',
+                            metal: '#d4af37',
+                            glow: '#ffd700',
+                            dark: '#856404'
+                        },
+                        obsidian: {
+                            950: '#09090b',
+                            900: '#121215',
+                            850: '#18181c',
+                            800: '#222227',
+                            700: '#31313a'
+                        }
+                    },
+                    fontFamily: {
+                        sans: ['"Plus Jakarta Sans"', 'sans-serif'],
+                        cinzel: ['"Cinzel"', 'serif']
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 5px;
+            height: 5px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: #121215;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: #b45309;
+            border-radius: 4px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+            background: #d4af37;
+        }
+        .gold-border-glow {
+            box-shadow: 0 0 15px rgba(212, 175, 55, 0.15);
+        }
+    </style>
+</head>
+<body class="h-full font-sans antialiased text-stone-300 bg-obsidian-950 flex flex-col selection:bg-gold-500 selection:text-black">
+
+    <!-- APP CONTAINER -->
+    <div id="app" class="h-full flex flex-col overflow-hidden">
+
+        <!-- ==================== PANTALLA 1: AUTENTICACIÓN / LOGIN (MODAL OVERLAY) ==================== -->
+        <div id="screen-auth" class="fixed inset-0 z-50 flex items-center justify-center bg-black/90 backdrop-blur-md p-4 transition-all duration-300">
+            <div class="bg-obsidian-900 w-full max-w-md rounded-2xl shadow-2xl overflow-hidden border border-gold-600/40 gold-border-glow">
+                <!-- Auth Header -->
+                <div class="bg-gradient-to-b from-stone-900 via-obsidian-900 to-obsidian-950 p-8 text-center border-b border-gold-600/30 relative">
+                    <div class="inline-flex items-center justify-center w-16 h-16 bg-gold-500/10 rounded-2xl mb-3 border border-gold-500/30 shadow-inner">
+                        <i class="fa-solid fa-shield-halved text-3xl text-gold-400"></i>
+                    </div>
+                    <h1 class="font-cinzel text-xl font-bold tracking-widest text-gold-300">CAMINANDO JUNTOS</h1>
+                    <p class="text-[11px] text-stone-400 uppercase tracking-wider mt-1 font-semibold">Portal de Supervisión CONASAMA / CESMA</p>
+
+                    <!-- Quick Role Demo Switcher -->
+                    <div class="mt-4 pt-3 border-t border-stone-800 text-xs flex justify-center items-center gap-1.5">
+                        <span class="text-gold-400/80 font-semibold text-[10px] uppercase">Rol Demo:</span>
+                        <button onclick="quickAuth('admin')" class="bg-gold-950/80 hover:bg-gold-900 text-gold-300 border border-gold-700/50 px-2 py-0.5 rounded text-[11px] transition">Admin Centro</button>
+                        <button onclick="quickAuth('certifier')" class="bg-stone-800 hover:bg-stone-700 text-amber-200 border border-amber-500/40 px-2 py-0.5 rounded text-[11px] transition">Revisor</button>
+                        <button onclick="quickAuth('super')" class="bg-stone-800 hover:bg-stone-700 text-stone-300 border border-stone-600 px-2 py-0.5 rounded text-[11px] transition">SuperAdmin</button>
+                    </div>
+                </div>
+
+                <!-- Step 1: Login Form -->
+                <div id="auth-step-login" class="p-8 space-y-4">
+                    <div>
+                        <label class="block text-[10px] font-bold uppercase tracking-wider text-gold-400 mb-1">Perfil de Acceso</label>
+                        <select id="login-role" class="w-full bg-obsidian-800 border border-gold-700/40 text-stone-200 text-xs rounded-xl p-3 focus:ring-1 focus:ring-gold-400 focus:border-gold-400">
+                            <option value="admin">Administrador de Centro de Rehabilitación</option>
+                            <option value="certifier">Certificador / Revisor Oficial (CONASAMA/CESMA)</option>
+                            <option value="super">Superadministrador de Red Institucional</option>
+                        </select>
+                    </div>
+
+                    <div>
+                        <label class="block text-[10px] font-bold uppercase tracking-wider text-gold-400 mb-1">Centro de Rehabilitación Asignado</label>
+                        <select id="login-center" class="w-full bg-obsidian-800 border border-gold-700/40 text-stone-200 text-xs rounded-xl p-3 focus:ring-1 focus:ring-gold-400 focus:border-gold-400">
+                            <option value="CR-001">Centro "Caminando Juntos I.A.P." - Sede Central (CJ-0142)</option>
+                            <option value="CR-002">Estancia Residencial "Luz y Esperanza" (LE-0891)</option>
+                        </select>
+                    </div>
+
+                    <div>
+                        <label class="block text-[10px] font-bold uppercase tracking-wider text-gold-400 mb-1">Correo Electrónico Institucional</label>
+                        <div class="relative">
+                            <i class="fa-solid fa-envelope absolute left-3.5 top-3.5 text-stone-500 text-xs"></i>
+                            <input type="email" id="login-email" value="direccion@caminandojuntos.org" class="w-full pl-9 pr-3 py-2.5 bg-obsidian-800 border border-stone-700 rounded-xl text-xs text-stone-200 focus:border-gold-400">
+                        </div>
+                    </div>
+
+                    <button onclick="goTo2FA()" class="w-full bg-gradient-to-r from-gold-600 via-gold-500 to-gold-600 hover:from-gold-500 hover:to-gold-400 text-black font-bold py-3 px-4 rounded-xl text-xs uppercase tracking-wider shadow-lg shadow-gold-500/20 transition flex items-center justify-center gap-2 mt-4">
+                        <span>Acceder al Portal Seguro</span>
+                        <i class="fa-solid fa-arrow-right text-xs"></i>
+                    </button>
+                </div>
+
+                <!-- Step 2: 2FA Token -->
+                <div id="auth-step-2fa" class="p-8 space-y-4 hidden text-center">
+                    <div class="w-12 h-12 bg-gold-500/10 text-gold-400 border border-gold-500/30 rounded-full flex items-center justify-center mx-auto text-xl">
+                        <i class="fa-solid fa-key"></i>
+                    </div>
+                    <h3 class="font-cinzel font-bold text-gold-300">Validación NOM-004 de 2 Factores</h3>
+                    <p class="text-xs text-stone-400">Introduce el código de autorización generado para acceder a los expedientes clínicos.</p>
+
+                    <div class="flex justify-center gap-2 my-4">
+                        <input type="text" maxlength="1" value="9" class="w-10 h-12 text-center text-xl font-bold bg-obsidian-800 border border-gold-600/40 text-gold-300 rounded-xl">
+                        <input type="text" maxlength="1" value="2" class="w-10 h-12 text-center text-xl font-bold bg-obsidian-800 border border-gold-600/40 text-gold-300 rounded-xl">
+                        <input type="text" maxlength="1" value="8" class="w-10 h-12 text-center text-xl font-bold bg-obsidian-800 border border-gold-600/40 text-gold-300 rounded-xl">
+                        <input type="text" maxlength="1" value="4" class="w-10 h-12 text-center text-xl font-bold bg-obsidian-800 border border-gold-600/40 text-gold-300 rounded-xl">
+                    </div>
+
+                    <button onclick="completeAuth()" class="w-full bg-gold-500 hover:bg-gold-400 text-black font-bold py-3 rounded-xl text-xs uppercase tracking-wider transition">
+                        Verificar e Ingresar
+                    </button>
+
+                    <button onclick="backToLogin()" class="text-xs text-stone-500 hover:text-stone-300 pt-2 block mx-auto">
+                        <i class="fa-solid fa-chevron-left mr-1"></i> Regresar a credenciales
+                    </button>
+                </div>
+
+                <div class="bg-obsidian-950 px-8 py-3 border-t border-stone-800 flex items-center justify-between text-[11px] text-stone-500">
+                    <span><i class="fa-solid fa-lock text-gold-500 mr-1"></i> Cifrado AES-256</span>
+                    <span class="text-stone-400">NOM-004-SSA3-2012</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- ==================== PLATAFORMA PRINCIPAL / DASHBOARD ==================== -->
+        <div class="flex-1 flex overflow-hidden">
+
+            <!-- SIDEBAR NAV (Mapa del Sitio Completo) -->
+            <aside class="w-72 bg-obsidian-900 text-stone-300 flex flex-col shrink-0 border-r border-gold-700/20">
+                <!-- App Header Logo -->
+                <div class="p-5 border-b border-stone-800 flex items-center justify-between bg-obsidian-950">
+                    <div class="flex items-center gap-3">
+                        <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-gold-400 to-gold-700 flex items-center justify-center text-black font-bold text-lg shadow-md shadow-gold-500/20">
+                            <i class="fa-solid fa-landmark"></i>
+                        </div>
+                        <div>
+                            <h2 class="font-cinzel font-bold text-gold-300 text-xs tracking-wider">CAMINANDO JUNTOS</h2>
+                            <p class="text-[10px] text-stone-400 font-medium tracking-tight">Gestor CONASAMA / CESMA</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Active Role Banner -->
+                <div class="px-4 py-3 bg-obsidian-850 border-b border-stone-800 flex items-center justify-between">
+                    <div class="flex items-center gap-2">
+                        <span id="role-badge-dot" class="w-2 h-2 rounded-full bg-gold-400"></span>
+                        <div class="text-xs">
+                            <span class="text-stone-500 block text-[9px] uppercase font-bold tracking-wider">Rol de Sesión:</span>
+                            <span id="role-badge-text" class="font-semibold text-gold-200">Admin Centro</span>
+                        </div>
+                    </div>
+                    <button onclick="toggleAuthModal()" class="text-xs text-gold-400 hover:text-gold-300 bg-obsidian-800 border border-gold-700/30 px-2 py-1 rounded" title="Cambiar Perfil">
+                        <i class="fa-solid fa-repeat"></i>
+                    </button>
+                </div>
+
+                <!-- Navigation List (Mapa del Sitio) -->
+                <nav class="flex-1 overflow-y-auto custom-scrollbar p-3 space-y-5">
+                    
+                    <!-- Overview -->
+                    <div>
+                        <p class="px-3 text-[9px] font-bold uppercase tracking-widest text-gold-500/80 mb-2">Panel Ejecutivo</p>
+                        <div class="space-y-1">
+                            <button onclick="switchView('dashboard')" id="nav-dashboard" class="nav-item active w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-semibold transition text-black bg-gradient-to-r from-gold-400 to-gold-600 shadow-md shadow-gold-500/20">
+                                <i class="fa-solid fa-chart-pie w-4 text-center"></i>
+                                <span>Dashboard de Cumplimiento</span>
+                            </button>
+                            <button onclick="switchView('simulation')" id="nav-simulation" class="nav-item w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-xs font-semibold text-stone-300 hover:bg-obsidian-800 hover:text-gold-300 transition border border-gold-600/30 bg-gold-950/20">
+                                <div class="flex items-center gap-3">
+                                    <i class="fa-solid fa-award w-4 text-center text-gold-400"></i>
+                                    <span class="text-gold-200">Simulador de Certificación</span>
+                                </div>
+                                <span class="bg-gold-500 text-black font-bold px-1.5 py-0.5 rounded text-[10px]">100%</span>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Módulos de la Cédula (Estructura del Documento) -->
+                    <div>
+                        <p class="px-3 text-[9px] font-bold uppercase tracking-widest text-gold-500/80 mb-2">Módulos Oficiales de la Cédula</p>
+                        <div class="space-y-1">
+                            <button onclick="switchView('mod1')" id="nav-mod1" class="nav-item w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs text-stone-400 hover:bg-obsidian-800 hover:text-gold-300 transition">
+                                <div class="flex items-center gap-2.5 truncate">
+                                    <i class="fa-solid fa-address-card text-gold-400 w-4 text-center"></i>
+                                    <span class="truncate">1. Identificación & Registro</span>
+                                </div>
+                                <span class="text-[10px] bg-obsidian-800 px-1.5 py-0.5 rounded text-stone-500">0%</span>
+                            </button>
+
+                            <button onclick="switchView('mod2')" id="nav-mod2" class="nav-item w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs text-stone-400 hover:bg-obsidian-800 hover:text-gold-300 transition">
+                                <div class="flex items-center gap-2.5 truncate">
+                                    <i class="fa-solid fa-building-hospital text-gold-400 w-4 text-center"></i>
+                                    <span class="truncate">2. Infraestructura & Servicios</span>
+                                </div>
+                                <span class="text-[10px] bg-gold-950 border border-gold-700/50 text-gold-300 font-bold px-1.5 py-0.5 rounded">25%</span>
+                            </button>
+
+                            <button onclick="switchView('mod3')" id="nav-mod3" class="nav-item w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs text-stone-400 hover:bg-obsidian-800 hover:text-gold-300 transition">
+                                <div class="flex items-center gap-2.5 truncate">
+                                    <i class="fa-solid fa-file-contract text-gold-400 w-4 text-center"></i>
+                                    <span class="truncate">3. Organización & Normativa</span>
+                                </div>
+                                <span class="text-[10px] bg-gold-950 border border-gold-700/50 text-gold-300 font-bold px-1.5 py-0.5 rounded">10%</span>
+                            </button>
+
+                            <button onclick="switchView('mod4')" id="nav-mod4" class="nav-item w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs text-stone-400 hover:bg-obsidian-800 hover:text-gold-300 transition">
+                                <div class="flex items-center gap-2.5 truncate">
+                                    <i class="fa-solid fa-user-doctor text-gold-400 w-4 text-center"></i>
+                                    <span class="truncate">4. Recursos Humanos & Cédulas</span>
+                                </div>
+                                <span class="text-[10px] bg-gold-950 border border-gold-700/50 text-gold-300 font-bold px-1.5 py-0.5 rounded">20%</span>
+                            </button>
+
+                            <button onclick="switchView('mod5')" id="nav-mod5" class="nav-item w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs text-stone-400 hover:bg-obsidian-800 hover:text-gold-300 transition">
+                                <div class="flex items-center gap-2.5 truncate">
+                                    <i class="fa-solid fa-notes-medical text-gold-400 w-4 text-center"></i>
+                                    <span class="truncate">5. Ingreso de Usuarios (Pt. 1)</span>
+                                </div>
+                                <span class="text-[10px] bg-gold-950 border border-gold-700/50 text-gold-300 font-bold px-1.5 py-0.5 rounded">15%</span>
+                            </button>
+
+                            <button onclick="switchView('mod6')" id="nav-mod6" class="nav-item w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs text-stone-400 hover:bg-obsidian-800 hover:text-gold-300 transition">
+                                <div class="flex items-center gap-2.5 truncate">
+                                    <i class="fa-solid fa-heart-pulse text-gold-400 w-4 text-center"></i>
+                                    <span class="truncate">6. Acompañamiento & Clínica</span>
+                                </div>
+                                <span class="text-[10px] bg-gold-950 border border-gold-700/50 text-gold-300 font-bold px-1.5 py-0.5 rounded">15%</span>
+                            </button>
+
+                            <button onclick="switchView('mod7')" id="nav-mod7" class="nav-item w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs text-stone-400 hover:bg-obsidian-800 hover:text-gold-300 transition">
+                                <div class="flex items-center gap-2.5 truncate">
+                                    <i class="fa-solid fa-clipboard-user text-gold-400 w-4 text-center"></i>
+                                    <span class="truncate">7. Egreso y Seguimiento</span>
+                                </div>
+                                <span class="text-[10px] bg-obsidian-800 px-1.5 py-0.5 rounded text-stone-500">0%</span>
+                            </button>
+
+                            <button onclick="switchView('mod8')" id="nav-mod8" class="nav-item w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs text-stone-400 hover:bg-obsidian-800 hover:text-gold-300 transition">
+                                <div class="flex items-center gap-2.5 truncate">
+                                    <i class="fa-solid fa-utensils text-gold-400 w-4 text-center"></i>
+                                    <span class="truncate">8. Alimentación & Quejas</span>
+                                </div>
+                                <span class="text-[10px] bg-gold-950 border border-gold-700/50 text-gold-300 font-bold px-1.5 py-0.5 rounded">15%</span>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Herramientas y Bóveda -->
+                    <div>
+                        <p class="px-3 text-[9px] font-bold uppercase tracking-widest text-gold-500/80 mb-2">Bóveda & Auditoría</p>
+                        <div class="space-y-1">
+                            <button onclick="switchView('repository')" id="nav-repository" class="nav-item w-full flex items-center gap-3 px-3 py-2 rounded-xl text-xs text-stone-400 hover:bg-obsidian-800 hover:text-gold-300 transition">
+                                <i class="fa-solid fa-vault text-gold-400 w-4 text-center"></i>
+                                <span>Bóveda de Evidencias Digitales</span>
+                            </button>
+                        </div>
+                    </div>
+
+                </nav>
+
+                <!-- Footer User Profile -->
+                <div class="p-3.5 border-t border-stone-800 bg-obsidian-950 flex items-center justify-between text-xs">
+                    <div class="flex items-center gap-2.5 overflow-hidden">
+                        <div id="user-avatar" class="w-8 h-8 rounded-full bg-gold-500 text-black font-bold flex items-center justify-center text-xs shrink-0">
+                            RG
+                        </div>
+                        <div class="truncate">
+                            <p id="user-display-name" class="font-bold text-stone-200 truncate">Lic. Roberto Garza</p>
+                            <p id="user-display-sub" class="text-[10px] text-gold-500/80 truncate">ID Centro: CJ-0142</p>
+                        </div>
+                    </div>
+                    <button onclick="toggleAuthModal()" class="text-stone-400 hover:text-gold-400 transition p-1.5" title="Cerrar / Cambiar Perfil">
+                        <i class="fa-solid fa-power-off"></i>
+                    </button>
+                </div>
+            </aside>
+
+            <!-- MAIN CONTENT AREA -->
+            <main class="flex-1 flex flex-col min-w-0 bg-obsidian-950 overflow-hidden">
+
+                <!-- TOP BAR -->
+                <header class="bg-obsidian-900 border-b border-gold-700/20 px-6 py-3.5 flex items-center justify-between shrink-0 shadow-lg">
+                    <div class="flex items-center gap-3">
+                        <h1 id="page-title" class="font-cinzel font-bold text-gold-300 text-base">Dashboard General de Supervisión</h1>
+                        <span id="page-badge" class="bg-gold-500/10 text-gold-300 text-[10px] font-semibold px-2.5 py-0.5 rounded-full border border-gold-500/30">
+                            Cédula Oficial CONASAMA
+                        </span>
+                    </div>
+
+                    <!-- Right Controls -->
+                    <div class="flex items-center gap-3">
+                        <div id="role-action-container">
+                            <button onclick="openUploadModal('General')" class="bg-gradient-to-r from-gold-500 to-gold-600 hover:from-gold-400 hover:to-gold-500 text-black text-xs font-bold px-3.5 py-2 rounded-xl shadow-md shadow-gold-500/20 flex items-center gap-2 transition uppercase tracking-wider">
+                                <i class="fa-solid fa-cloud-arrow-up"></i>
+                                <span>Subir Evidencia Digital</span>
+                            </button>
+                        </div>
+
+                        <div class="h-5 w-px bg-stone-800"></div>
+
+                        <!-- Notification Button -->
+                        <div class="relative">
+                            <button class="w-8 h-8 rounded-xl bg-obsidian-800 hover:bg-stone-800 text-gold-400 border border-stone-700 flex items-center justify-center text-xs transition">
+                                <i class="fa-solid fa-bell"></i>
+                            </button>
+                            <span class="absolute -top-1 -right-1 w-2 h-2 bg-gold-400 rounded-full"></span>
+                        </div>
+                    </div>
+                </header>
+
+                <!-- SCROLLABLE VIEW PORT -->
+                <div class="flex-1 overflow-y-auto p-6 space-y-6 custom-scrollbar">
+
+                    <!-- ==================== VIEW 1: DASHBOARD GENERAL ==================== -->
+                    <div id="view-dashboard" class="space-y-6">
+                        <!-- Top Summary KPI Cards -->
+                        <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+                            <!-- Card 1: Porcentaje Global -->
+                            <div class="bg-obsidian-900 p-5 rounded-2xl border border-gold-600/30 shadow-lg flex items-center justify-between gold-border-glow">
+                                <div>
+                                    <span class="text-[10px] font-bold uppercase tracking-widest text-gold-400">Cumplimiento Global</span>
+                                    <h3 class="text-3xl font-cinzel font-bold text-gold-300 mt-1" id="dash-score-total">88.0%</h3>
+                                    <p class="text-[11px] text-emerald-400 font-medium mt-1"><i class="fa-solid fa-circle-check mr-1"></i> Apto para Acreditación</p>
+                                </div>
+                                <div class="w-12 h-12 rounded-xl bg-gold-500/10 border border-gold-500/30 text-gold-400 flex items-center justify-center text-xl">
+                                    <i class="fa-solid fa-award"></i>
+                                </div>
+                            </div>
+
+                            <!-- Card 2: Criterios Obligatorios -->
+                            <div class="bg-obsidian-900 p-5 rounded-2xl border border-stone-800 shadow-md flex items-center justify-between">
+                                <div>
+                                    <span class="text-[10px] font-bold uppercase tracking-widest text-stone-400">Criterios Obligatorios</span>
+                                    <h3 class="text-3xl font-cinzel font-bold text-stone-100 mt-1">12/12</h3>
+                                    <p class="text-[11px] text-gold-400 font-medium mt-1">100% Sin Omisiones</p>
+                                </div>
+                                <div class="w-12 h-12 rounded-xl bg-stone-800 border border-stone-700 text-gold-400 flex items-center justify-center text-xl">
+                                    <i class="fa-solid fa-shield-check"></i>
+                                </div>
+                            </div>
+
+                            <!-- Card 3: Evidencias Digitales -->
+                            <div class="bg-obsidian-900 p-5 rounded-2xl border border-stone-800 shadow-md flex items-center justify-between">
+                                <div>
+                                    <span class="text-[10px] font-bold uppercase tracking-widest text-stone-400">Archivos en Bóveda</span>
+                                    <h3 class="text-3xl font-cinzel font-bold text-stone-100 mt-1">42 Docs</h3>
+                                    <p class="text-[11px] text-amber-400 font-medium mt-1"><i class="fa-solid fa-clock mr-1"></i> 3 en verificación</p>
+                                </div>
+                                <div class="w-12 h-12 rounded-xl bg-stone-800 border border-stone-700 text-amber-400 flex items-center justify-center text-xl">
+                                    <i class="fa-solid fa-folder-tree"></i>
+                                </div>
+                            </div>
+
+                            <!-- Card 4: Capacidad y Camas -->
+                            <div class="bg-obsidian-900 p-5 rounded-2xl border border-stone-800 shadow-md flex items-center justify-between">
+                                <div>
+                                    <span class="text-[10px] font-bold uppercase tracking-widest text-stone-400">Capacidad / Camas</span>
+                                    <h3 class="text-3xl font-cinzel font-bold text-stone-100 mt-1">32/40</h3>
+                                    <p class="text-[11px] text-stone-400 font-medium mt-1">80% Ocupación Actual</p>
+                                </div>
+                                <div class="w-12 h-12 rounded-xl bg-stone-800 border border-stone-700 text-stone-300 flex items-center justify-center text-xl">
+                                    <i class="fa-solid fa-bed"></i>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Chart & Summary Table -->
+                        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                            <!-- Left: Bar Breakdown Chart -->
+                            <div class="lg:col-span-2 bg-obsidian-900 p-6 rounded-2xl border border-stone-800 shadow-md flex flex-col">
+                                <div class="flex items-center justify-between mb-4">
+                                    <div>
+                                        <h3 class="font-cinzel font-bold text-gold-300 text-sm">Ponderación por Módulo Oficial CONASAMA</h3>
+                                        <p class="text-xs text-stone-400">Distribución porcentual de los 100 puntos de la cédula[cite: 1, 2].</p>
+                                    </div>
+                                    <button onclick="switchView('simulation')" class="text-xs font-bold text-gold-400 hover:text-gold-300 bg-gold-500/10 border border-gold-500/30 px-3 py-1.5 rounded-xl transition">
+                                        Ir al Simulador <i class="fa-solid fa-arrow-right ml-1"></i>
+                                    </button>
+                                </div>
+
+                                <div class="flex-1 min-h-[260px] relative flex items-center justify-center">
+                                    <canvas id="weightingChart"></canvas>
+                                </div>
+                            </div>
+
+                            <!-- Right: Status Breakdown List -->
+                            <div class="bg-obsidian-900 p-6 rounded-2xl border border-stone-800 shadow-md space-y-3">
+                                <h3 class="font-cinzel font-bold text-gold-300 text-xs border-b border-stone-800 pb-3">Estado de Módulos</h3>
+
+                                <div class="space-y-2.5 text-xs">
+                                    <div class="p-2.5 rounded-xl bg-obsidian-800 border border-stone-700 flex items-center justify-between">
+                                        <span class="font-medium text-stone-300">Infraestructura (25%)[cite: 1]</span>
+                                        <span class="font-bold text-gold-400">23.5 / 25 pts</span>
+                                    </div>
+                                    <div class="p-2.5 rounded-xl bg-obsidian-800 border border-stone-700 flex items-center justify-between">
+                                        <span class="font-medium text-stone-300">Acompañamiento (30%)[cite: 1]</span>
+                                        <span class="font-bold text-gold-400">27.0 / 30 pts</span>
+                                    </div>
+                                    <div class="p-2.5 rounded-xl bg-obsidian-800 border border-stone-700 flex items-center justify-between">
+                                        <span class="font-medium text-stone-300">Recursos Humanos (20%)[cite: 1]</span>
+                                        <span class="font-bold text-gold-400">18.0 / 20 pts</span>
+                                    </div>
+                                    <div class="p-2.5 rounded-xl bg-obsidian-800 border border-stone-700 flex items-center justify-between">
+                                        <span class="font-medium text-stone-300">Organización (10%)[cite: 1]</span>
+                                        <span class="font-bold text-amber-400">8.0 / 10 pts</span>
+                                    </div>
+                                    <div class="p-2.5 rounded-xl bg-obsidian-800 border border-stone-700 flex items-center justify-between">
+                                        <span class="font-medium text-stone-300">Alimentación (10%)[cite: 1]</span>
+                                        <span class="font-bold text-gold-400">9.5 / 10 pts</span>
+                                    </div>
+                                    <div class="p-2.5 rounded-xl bg-obsidian-800 border border-stone-700 flex items-center justify-between">
+                                        <span class="font-medium text-stone-300">Quejas y Buzón (5%)[cite: 1]</span>
+                                        <span class="font-bold text-gold-400">5.0 / 5 pts</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- ==================== VIEW 2: SIMULADOR DE CERTIFICACIÓN ==================== -->
+                    <div id="view-simulation" class="space-y-6 hidden">
+                        <!-- Banner Superior Simulador -->
+                        <div class="bg-gradient-to-r from-stone-900 via-obsidian-900 to-obsidian-950 text-stone-200 p-6 rounded-2xl shadow-xl border border-gold-600/40 flex flex-col md:flex-row items-center justify-between gap-6 gold-border-glow">
+                            <div class="space-y-2">
+                                <span class="bg-gold-500 text-black text-[10px] font-bold uppercase tracking-widest px-2.5 py-1 rounded">Simulador Interactivo</span>
+                                <h2 class="font-cinzel text-xl font-bold text-gold-300">Evaluación de Acreditación Oficial CONASAMA</h2>
+                                <p class="text-xs text-stone-400 max-w-2xl">
+                                    Simula el algoritmo de dictamen marcando los reactivos auditados. Genera el acta formal de cumplimiento en tiempo real con firma digital[cite: 5].
+                                </p>
+                            </div>
+
+                            <div class="bg-obsidian-800/90 p-4 rounded-xl border border-gold-600/30 text-center shrink-0 w-full md:w-56">
+                                <span class="text-[10px] text-gold-400 block uppercase font-bold tracking-widest">Puntaje Obtenido</span>
+                                <div id="sim-total-score" class="text-4xl font-cinzel font-black text-gold-300 my-1">88.0%</div>
+                                <span id="sim-status-badge" class="bg-emerald-600 text-black font-bold text-[10px] uppercase px-2.5 py-0.5 rounded-full inline-block">APROBADO</span>
+                            </div>
+                        </div>
+
+                        <!-- Simulador Content: Checklist Table and Dictamen Panel -->
+                        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+
+                            <!-- Left 2 Cols: Checklist Interactivo -->
+                            <div class="lg:col-span-2 bg-obsidian-900 rounded-2xl border border-stone-800 shadow-md overflow-hidden flex flex-col">
+                                <div class="p-4 bg-obsidian-850 border-b border-stone-800 flex items-center justify-between">
+                                    <h3 class="font-cinzel font-bold text-gold-300 text-xs">Cédula Oficial de Supervisión</h3>
+                                    <div class="flex gap-2">
+                                        <button onclick="checkAllSim(true)" class="text-[10px] bg-stone-800 hover:bg-stone-700 text-gold-300 border border-gold-700/30 px-2 py-1 rounded font-semibold">Marcar Todo</button>
+                                        <button onclick="checkAllSim(false)" class="text-[10px] bg-stone-800 hover:bg-stone-700 text-stone-400 border border-stone-700 px-2 py-1 rounded font-semibold">Desmarcar</button>
+                                    </div>
+                                </div>
+
+                                <div class="overflow-x-auto flex-1 custom-scrollbar">
+                                    <table class="w-full text-left text-xs border-collapse">
+                                        <thead class="bg-obsidian-950 text-gold-400 font-bold uppercase text-[9px] border-b border-stone-800 tracking-wider">
+                                            <tr>
+                                                <th class="p-3 w-12 text-center">Status</th>
+                                                <th class="p-3">Sección / Criterio Oficial[cite: 1]</th>
+                                                <th class="p-3 w-28 text-center">Puntos</th>
+                                                <th class="p-3 w-32">Evidencia Digital</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="sim-checklist-body" class="divide-y divide-stone-850">
+                                            <!-- Dynamically Rendered by JS -->
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+
+                            <!-- Right Col: Dictamen Generator & Notes -->
+                            <div class="space-y-6">
+                                <div class="bg-obsidian-900 p-6 rounded-2xl border border-stone-800 shadow-md space-y-4">
+                                    <h3 class="font-cinzel font-bold text-gold-300 text-xs border-b border-stone-800 pb-3 flex items-center gap-2">
+                                        <i class="fa-solid fa-stamp text-gold-400"></i>
+                                        <span>Emisión de Dictamen Oficial</span>
+                                    </h3>
+
+                                    <div>
+                                        <label class="block text-[10px] font-bold text-gold-400 uppercase mb-1">Observaciones del Revisor:</label>
+                                        <textarea id="sim-notes" rows="4" class="w-full bg-obsidian-800 border border-stone-700 rounded-xl p-2.5 text-xs text-stone-200 focus:border-gold-400" placeholder="Redacte las consideraciones oficiales..."></textarea>
+                                    </div>
+
+                                    <div>
+                                        <label class="block text-[10px] font-bold text-gold-400 uppercase mb-1">Inspector Supervisor:</label>
+                                        <input type="text" id="sim-inspector" value="Dr. Fernando Morales - Revisor CESMA" class="w-full bg-obsidian-800 border border-stone-700 rounded-xl p-2 text-xs text-stone-200">
+                                    </div>
+
+                                    <button onclick="generateDictamenModal()" class="w-full bg-gradient-to-r from-gold-500 to-gold-600 hover:from-gold-400 hover:to-gold-500 text-black text-xs font-bold py-3 rounded-xl shadow-lg shadow-gold-500/20 flex items-center justify-center gap-2 uppercase tracking-wider transition">
+                                        <i class="fa-solid fa-file-pdf"></i>
+                                        <span>Generar Acta de Dictamen</span>
+                                    </button>
+                                </div>
+
+                                <div class="bg-obsidian-900 border border-gold-600/30 rounded-2xl p-4 text-xs text-stone-300 space-y-2">
+                                    <div class="font-cinzel font-bold text-gold-300 flex items-center gap-2">
+                                        <i class="fa-solid fa-circle-info text-gold-400"></i>
+                                        <span>Criterio de Acreditación</span>
+                                    </div>
+                                    <p class="text-[11px] text-stone-400 leading-relaxed">
+                                        Para obtener el reconocimiento oficial, el establecimiento debe alcanzar al menos **80.0% de ponderación global** y tener un **100% de cumplimiento en los criterios obligatorios**[cite: 1].
+                                    </p>
+                                </div>
+                            </div>
+
+                        </div>
+                    </div>
+
+                    <!-- ==================== VIEW 3: MÓDULO GENÉRICO ==================== -->
+                    <div id="view-module-generic" class="space-y-6 hidden">
+                        <div class="bg-obsidian-900 p-6 rounded-2xl border border-stone-800 shadow-md flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+                            <div>
+                                <span id="mod-tag" class="bg-gold-500/10 text-gold-400 text-[10px] font-bold uppercase tracking-widest px-2.5 py-0.5 rounded-full border border-gold-500/30">Módulo Cédula</span>
+                                <h2 id="mod-title" class="font-cinzel text-lg font-bold text-gold-300 mt-1">Título del Módulo</h2>
+                                <p id="mod-desc" class="text-xs text-stone-400 mt-1">Carga y validación de evidencias.</p>
+                            </div>
+
+                            <button onclick="triggerModuleUpload()" class="bg-gradient-to-r from-gold-500 to-gold-600 text-black text-xs font-bold px-4 py-2.5 rounded-xl shadow-md uppercase tracking-wider flex items-center gap-2 shrink-0">
+                                <i class="fa-solid fa-cloud-arrow-up"></i>
+                                <span>Adjuntar Evidencia</span>
+                            </button>
+                        </div>
+
+                        <div class="bg-obsidian-900 rounded-2xl border border-stone-800 shadow-md overflow-hidden">
+                            <div class="p-4 bg-obsidian-850 border-b border-stone-800 flex items-center justify-between">
+                                <h3 class="font-cinzel font-bold text-gold-300 text-xs">Evidencias Adjuntas en esta Sección</h3>
+                                <span class="text-[11px] text-stone-500">Filtrado Oficial</span>
+                            </div>
+
+                            <div class="overflow-x-auto">
+                                <table class="w-full text-left text-xs">
+                                    <thead class="bg-obsidian-950 text-gold-400 font-bold uppercase text-[9px] tracking-wider">
+                                        <tr>
+                                            <th class="p-3">Num.</th>
+                                            <th class="p-3">Criterio / Documento</th>
+                                            <th class="p-3">Formato</th>
+                                            <th class="p-3">Estatus</th>
+                                            <th class="p-3">Fecha</th>
+                                            <th class="p-3 text-right">Acción</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="module-table-body" class="divide-y divide-stone-850">
+                                        <!-- Dynamically Rendered -->
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- ==================== VIEW 4: BÓVEDA DE ARCHIVOS ==================== -->
+                    <div id="view-repository" class="space-y-6 hidden">
+                        <div class="bg-obsidian-900 p-6 rounded-2xl border border-stone-800 shadow-md">
+                            <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
+                                <div>
+                                    <h2 class="font-cinzel font-bold text-gold-300 text-base">Bóveda Digital Unificada de Evidencias</h2>
+                                    <p class="text-xs text-stone-400">Expedientes clínicos, fotos georreferenciadas y bitácoras[cite: 2, 5].</p>
+                                </div>
+
+                                <div class="flex items-center gap-2">
+                                    <input type="text" placeholder="Buscar por nombre, folio..." class="bg-obsidian-800 border border-stone-700 rounded-xl px-3 py-1.5 text-xs text-stone-200 focus:outline-none focus:border-gold-400">
+                                    <button class="bg-gold-500 text-black text-xs px-3 py-1.5 rounded-xl font-bold"><i class="fa-solid fa-magnifying-glass"></i></button>
+                                </div>
+                            </div>
+
+                            <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4" id="repo-grid">
+                                <!-- Rendered dynamically -->
+                            </div>
+                        </div>
+                    </div>
+
+                </div>
+            </main>
+        </div>
+
+        <!-- ==================== MODAL: UPLOAD FILE ==================== -->
+        <div id="modal-upload" class="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-md p-4 hidden">
+            <div class="bg-obsidian-900 w-full max-w-lg rounded-2xl shadow-2xl overflow-hidden border border-gold-600/40">
+                <div class="bg-obsidian-950 p-4 border-b border-stone-800 flex items-center justify-between">
+                    <h3 class="font-cinzel font-bold text-sm text-gold-300 flex items-center gap-2">
+                        <i class="fa-solid fa-cloud-arrow-up text-gold-400"></i>
+                        <span>Cargar Evidencia a la Bóveda</span>
+                    </h3>
+                    <button onclick="closeUploadModal()" class="text-stone-400 hover:text-white"><i class="fa-solid fa-xmark"></i></button>
+                </div>
+
+                <div class="p-6 space-y-4 text-xs">
+                    <div>
+                        <label class="block font-bold text-gold-400 uppercase text-[10px] mb-1">Sección de la Cédula:</label>
+                        <select id="upload-section-select" class="w-full bg-obsidian-800 border border-stone-700 rounded-xl p-2.5 text-stone-200">
+                            <option value="Infraestructura">2. Infraestructura & Servicios (Fotos / Planos)[cite: 1]</option>
+                            <option value="Organización">3. Organización & Licencias (PDFs)[cite: 1]</option>
+                            <option value="Recursos Humanos">4. Recursos Humanos & Cédulas[cite: 1]</option>
+                            <option value="Acompañamiento">5-6. Proceso Clínico & Bitácoras[cite: 1]</option>
+                            <option value="Alimentación">8. Menús & Buzón de Quejas[cite: 1]</option>
+                        </select>
+                    </div>
+
+                    <div>
+                        <label class="block font-bold text-gold-400 uppercase text-[10px] mb-1">Descripción del Archivo:</label>
+                        <input type="text" id="upload-doc-name" placeholder="Ej. Foto Dormitorios Mujeres o Bitácora Médica" class="w-full bg-obsidian-800 border border-stone-700 rounded-xl p-2.5 text-stone-200">
+                    </div>
+
+                    <!-- Drag & Drop Zone -->
+                    <div class="border-2 border-dashed border-gold-600/40 bg-gold-950/20 hover:bg-gold-950/40 rounded-2xl p-6 text-center cursor-pointer transition">
+                        <i class="fa-solid fa-file-arrow-up text-3xl text-gold-400 mb-2"></i>
+                        <p class="font-bold text-stone-200">Arrastre aquí los archivos o explore en su equipo</p>
+                        <p class="text-[10px] text-stone-400 mt-1">Formatos admitidos: PDF, JPG, PNG, XLSX (Máx 25 MB)</p>
+                    </div>
+
+                    <div class="flex items-center gap-2 text-[10px] text-stone-400">
+                        <i class="fa-solid fa-lock text-gold-400"></i>
+                        <span>Cifrado inmutable con estampa de tiempo NOM-004[cite: 2, 5].</span>
+                    </div>
+                </div>
+
+                <div class="bg-obsidian-950 p-4 border-t border-stone-800 flex justify-end gap-2">
+                    <button onclick="closeUploadModal()" class="px-4 py-2 bg-stone-800 hover:bg-stone-700 text-stone-300 text-xs font-semibold rounded-xl">Cancelar</button>
+                    <button onclick="submitUploadSim()" class="px-4 py-2 bg-gradient-to-r from-gold-500 to-gold-600 text-black text-xs font-bold uppercase rounded-xl shadow-md">Guardar y Enviar</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- ==================== MODAL: DICTAMEN OFICIAL ==================== -->
+        <div id="modal-dictamen" class="fixed inset-0 z-50 flex items-center justify-center bg-black/85 backdrop-blur-md p-4 hidden">
+            <div class="bg-obsidian-900 w-full max-w-2xl rounded-2xl shadow-2xl overflow-hidden border border-gold-600/40 flex flex-col max-h-[90vh]">
+                <div class="bg-obsidian-950 p-4 border-b border-stone-800 flex items-center justify-between">
+                    <h3 class="font-cinzel font-bold text-sm text-gold-300 flex items-center gap-2">
+                        <i class="fa-solid fa-stamp text-gold-400"></i>
+                        <span>Acta Oficial de Supervisión CONASAMA / CESMA</span>
+                    </h3>
+                    <button onclick="closeDictamenModal()" class="text-stone-400 hover:text-white"><i class="fa-solid fa-xmark"></i></button>
+                </div>
+
+                <div class="p-8 overflow-y-auto space-y-6 text-stone-300 text-xs custom-scrollbar">
+                    <div class="border-b-2 border-gold-600/40 pb-4 text-center space-y-1">
+                        <p class="text-[10px] font-bold text-gold-400 uppercase tracking-widest">SECRETARÍA DE SALUD | CONASAMA / CESMA</p>
+                        <h2 class="font-cinzel font-bold text-base text-stone-100">DICTAMEN OFICIAL DE ACREDITACIÓN RESIDENCIAL</h2>
+                        <p class="text-xs text-stone-400">Establecimientos de Estancia Temporal con Programas de Ayuda Mutua[cite: 1]</p>
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-4 bg-obsidian-850 p-4 rounded-xl border border-stone-800 text-[11px]">
+                        <div>
+                            <p><strong class="text-gold-300">Establecimiento:</strong> Caminando Juntos I.A.P.</p>
+                            <p><strong class="text-gold-300">Folio Registro:</strong> CONASAMA-2026-0814</p>
+                            <p><strong class="text-gold-300">Representante:</strong> Lic. Roberto Garza</p>
+                        </div>
+                        <div>
+                            <p><strong class="text-gold-300">Fecha Dictamen:</strong> 21 de Agosto de 2026</p>
+                            <p><strong class="text-gold-300">Capacidad:</strong> 40 Camas (32 Ocupadas)[cite: 1]</p>
+                            <p><strong class="text-gold-300">Modalidad:</strong> Residencial Ayuda Mutua[cite: 1]</p>
+                        </div>
+                    </div>
+
+                    <div class="bg-gold-500/10 border border-gold-500/40 p-4 rounded-xl text-center space-y-1">
+                        <span class="text-[10px] font-bold uppercase tracking-widest text-gold-400">Resultado Oficial</span>
+                        <div class="text-3xl font-cinzel font-black text-gold-300" id="modal-dictamen-score">88.0% DE CUMPLIMIENTO</div>
+                        <p class="text-xs font-bold text-emerald-400" id="modal-dictamen-verdict">ESTADO: ACREDITADO / CUMPLE CON LA NORMATIVA</p>
+                    </div>
+
+                    <div class="space-y-1">
+                        <h4 class="font-cinzel font-bold text-gold-400 text-xs">Observaciones Registradas:</h4>
+                        <p id="modal-dictamen-notes" class="bg-obsidian-850 p-3 rounded-xl border border-stone-800 text-stone-400 italic">
+                            Sin observaciones restrictivas.
+                        </p>
+                    </div>
+
+                    <div class="pt-6 grid grid-cols-2 gap-8 text-center text-[11px]">
+                        <div class="border-t border-stone-700 pt-2">
+                            <p id="modal-dictamen-inspector-name" class="font-bold text-stone-200">Dr. Fernando Morales</p>
+                            <p class="text-stone-500">Supervisor Certificador CONASAMA</p>
+                        </div>
+                        <div class="border-t border-stone-700 pt-2">
+                            <p class="font-bold text-stone-200">Lic. Roberto Garza</p>
+                            <p class="text-stone-500">Director del Establecimiento</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="bg-obsidian-950 p-4 border-t border-stone-800 flex justify-between items-center">
+                    <span class="text-[10px] text-stone-500"><i class="fa-solid fa-qrcode mr-1"></i> Folio Seguro: CJ-GOLD-9918</span>
+                    <div class="flex gap-2">
+                        <button onclick="closeDictamenModal()" class="px-4 py-2 bg-stone-800 text-stone-300 text-xs font-semibold rounded-xl">Cerrar</button>
+                        <button onclick="window.print()" class="px-4 py-2 bg-gradient-to-r from-gold-500 to-gold-600 text-black text-xs font-bold rounded-xl flex items-center gap-2">
+                            <i class="fa-solid fa-print"></i>
+                            <span>Imprimir / PDF</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- SCRIPT LOGIC -->
+    <script>
+        const state = {
+            role: 'admin',
+            activeView: 'dashboard',
+            checklist: [
+                { id: '1.3', sec: 'Infraestructura', name: 'Consultorio Médico Equipado (100% NOM)', weight: 5.0, max: 5.0, mandatory: true, check: true, file: 'Inventario_Consultorio.pdf' },
+                { id: '1.7', sec: 'Infraestructura', name: 'Dormitorios por Sexo (Sin Hacinamiento)', weight: 10.0, max: 10.0, mandatory: true, check: true, file: 'Foto_Dormitorios.jpg' },
+                { id: '1.8', sec: 'Infraestructura', name: 'Sanitarios Suficientes (1 por cada 8 pers.)', weight: 6.5, max: 8.0, mandatory: true, check: true, file: 'Foto_Sanitarios.jpg' },
+                { id: '3.1', sec: 'Organización', name: 'Aviso de Funcionamiento / Licencia Sanitaria', weight: 3.0, max: 3.0, mandatory: true, check: true, file: 'Licencia_Sanitaria.pdf' },
+                { id: '3.9', sec: 'Organización', name: 'Cartel de Derechos del Usuario Visible', weight: 2.0, max: 3.0, mandatory: true, check: true, file: 'Foto_Cartel_Derechos.jpg' },
+                { id: '4.2', sec: 'Recursos Humanos', name: 'Cédula Profesional del Médico Responsable', weight: 8.0, max: 8.0, mandatory: true, check: true, file: 'Cedula_Medico.pdf' },
+                { id: '4.3', sec: 'Recursos Humanos', name: 'Capacitación en Adicciones (Consejeros)', weight: 10.0, max: 12.0, mandatory: false, check: true, file: 'Diplomas_Consejeros.pdf' },
+                { id: '5.1', sec: 'Acompañamiento', name: 'Consentimiento Voluntario y Costos Claros', weight: 10.0, max: 10.0, mandatory: true, check: true, file: 'Consentimiento_Voluntario.pdf' },
+                { id: '5.2', sec: 'Acompañamiento', name: 'Historia Clínica dentro de las 24 hrs', weight: 10.0, max: 10.0, mandatory: true, check: true, file: 'Historia_Clinica_Tipo.pdf' },
+                { id: '2.1', sec: 'Alimentación', name: 'Menús Balanceados y Agua Potable', weight: 9.5, max: 10.0, mandatory: true, check: true, file: 'Menu_Nutricional.pdf' },
+                { id: '6.1', sec: 'Quejas', name: 'Buzón de Quejas y Apertura Mensual', weight: 5.0, max: 5.0, mandatory: false, check: true, file: 'Bitacora_Buzon.xlsx' }
+            ],
+            repositoryFiles: [
+                { name: 'Plano_Arquitectonico_2026.pdf', sec: 'Infraestructura', size: '3.2 MB', type: 'PDF', status: 'Aprobado', date: '2026-08-10' },
+                { name: 'Foto_Dormitorios_Georref.jpg', sec: 'Infraestructura', size: '4.8 MB', type: 'JPG', status: 'Aprobado', date: '2026-08-11' },
+                { name: 'Licencia_Sanitaria_2026.pdf', sec: 'Organización', size: '1.1 MB', type: 'PDF', status: 'Aprobado', date: '2026-08-01' },
+                { name: 'Cedula_Medico_Titular.pdf', sec: 'Recursos Humanos', size: '850 KB', type: 'PDF', status: 'Aprobado', date: '2026-08-05' },
+                { name: 'Consentimiento_Voluntario.pdf', sec: 'Acompañamiento', size: '2.4 MB', type: 'PDF', status: 'Aprobado', date: '2026-08-14' },
+                { name: 'Bitacora_Buzon_Quejas.xlsx', sec: 'Quejas', size: '420 KB', type: 'XLSX', status: 'Pendiente', date: '2026-08-19' }
+            ]
+        };
+
+        function quickAuth(role) {
+            document.getElementById('login-role').value = role;
+            completeAuth();
+        }
+
+        function goTo2FA() {
+            document.getElementById('auth-step-login').classList.add('hidden');
+            document.getElementById('auth-step-2fa').classList.remove('hidden');
+        }
+
+        function backToLogin() {
+            document.getElementById('auth-step-2fa').classList.add('hidden');
+            document.getElementById('auth-step-login').classList.remove('hidden');
+        }
+
+        function completeAuth() {
+            state.role = document.getElementById('login-role').value;
+            document.getElementById('screen-auth').classList.add('hidden');
+            applyRolePermissions();
+            renderChecklist();
+            renderRepoGrid();
+            initChart();
+        }
+
+        function toggleAuthModal() {
+            document.getElementById('screen-auth').classList.toggle('hidden');
+        }
+
+        function applyRolePermissions() {
+            const roleDot = document.getElementById('role-badge-dot');
+            const roleText = document.getElementById('role-badge-text');
+            const userName = document.getElementById('user-display-name');
+            const userSub = document.getElementById('user-display-sub');
+            const userAvatar = document.getElementById('user-avatar');
+            const actionContainer = document.getElementById('role-action-container');
+
+            if (state.role === 'admin') {
+                roleDot.className = "w-2 h-2 rounded-full bg-gold-400";
+                roleText.innerText = "Admin Centro";
+                userName.innerText = "Lic. Roberto Garza";
+                userSub.innerText = "ID Centro: CJ-0142";
+                userAvatar.innerText = "RG";
+                userAvatar.className = "w-8 h-8 rounded-full bg-gold-500 text-black font-bold flex items-center justify-center text-xs shrink-0";
+                
+                actionContainer.innerHTML = `
+                    <button onclick="openUploadModal('General')" class="bg-gradient-to-r from-gold-500 to-gold-600 text-black text-xs font-bold px-3.5 py-2 rounded-xl shadow-md shadow-gold-500/20 flex items-center gap-2 transition uppercase tracking-wider">
+                        <i class="fa-solid fa-cloud-arrow-up"></i>
+                        <span>Subir Evidencia Digital</span>
+                    </button>`;
+            } else if (state.role === 'certifier') {
+                roleDot.className = "w-2 h-2 rounded-full bg-amber-400";
+                roleText.innerText = "Revisor CONASAMA";
+                userName.innerText = "Dr. Fernando Morales";
+                userSub.innerText = "Inspector CESMA - Reg: 8812";
+                userAvatar.innerText = "FM";
+                userAvatar.className = "w-8 h-8 rounded-full bg-amber-600 text-black font-bold flex items-center justify-center text-xs shrink-0";
+
+                actionContainer.innerHTML = `
+                    <button onclick="switchView('simulation')" class="bg-gradient-to-r from-amber-400 to-amber-500 text-black text-xs font-bold px-3.5 py-2 rounded-xl shadow-md flex items-center gap-2 transition uppercase tracking-wider">
+                        <i class="fa-solid fa-clipboard-check"></i>
+                        <span>Panel de Evaluación</span>
+                    </button>`;
+            } else {
+                roleDot.className = "w-2 h-2 rounded-full bg-stone-400";
+                roleText.innerText = "Superadministrador";
+                userName.innerText = "Mtra. Elena Salgado";
+                userSub.innerText = "Coordinación Red Nacional";
+                userAvatar.innerText = "ES";
+                userAvatar.className = "w-8 h-8 rounded-full bg-stone-600 text-white font-bold flex items-center justify-center text-xs shrink-0";
+
+                actionContainer.innerHTML = `
+                    <button onclick="alert('Redirigiendo a panel global de auditoría...')" class="bg-stone-800 text-gold-300 border border-gold-600/40 text-xs font-bold px-3.5 py-2 rounded-xl shadow-md flex items-center gap-2 transition uppercase tracking-wider">
+                        <i class="fa-solid fa-network-wired"></i>
+                        <span>Red de Establecimientos</span>
+                    </button>`;
+            }
+        }
+
+        function switchView(viewName) {
+            state.activeView = viewName;
+            ['dashboard', 'simulation', 'module-generic', 'repository'].forEach(v => {
+                document.getElementById('view-' + v).classList.add('hidden');
+            });
+
+            document.querySelectorAll('.nav-item').forEach(btn => {
+                btn.classList.remove('bg-gradient-to-r', 'from-gold-400', 'to-gold-600', 'text-black', 'font-bold');
+                btn.classList.add('text-stone-400');
+            });
+
+            const pageTitle = document.getElementById('page-title');
+
+            if (viewName === 'dashboard') {
+                document.getElementById('view-dashboard').classList.remove('hidden');
+                document.getElementById('nav-dashboard').classList.add('bg-gradient-to-r', 'from-gold-400', 'to-gold-600', 'text-black', 'font-bold');
+                pageTitle.innerText = "Dashboard General de Supervisión";
+            } else if (viewName === 'simulation') {
+                document.getElementById('view-simulation').classList.remove('hidden');
+                document.getElementById('nav-simulation').classList.add('bg-gradient-to-r', 'from-gold-400', 'to-gold-600', 'text-black', 'font-bold');
+                pageTitle.innerText = "Simulador de Certificación CONASAMA";
+            } else if (viewName === 'repository') {
+                document.getElementById('view-repository').classList.remove('hidden');
+                document.getElementById('nav-repository').classList.add('bg-gradient-to-r', 'from-gold-400', 'to-gold-600', 'text-black', 'font-bold');
+                pageTitle.innerText = "Bóveda de Evidencias Digitales";
+            } else if (viewName.startsWith('mod')) {
+                document.getElementById('view-module-generic').classList.remove('hidden');
+                document.getElementById('nav-' + viewName).classList.add('bg-gradient-to-r', 'from-gold-400', 'to-gold-600', 'text-black', 'font-bold');
+                renderGenericModule(viewName);
+            }
+        }
+
+        const moduleMap = {
+            'mod1': { title: '1. Identificación y Registro del Centro', tag: 'Cédula Sección I[cite: 1]', desc: 'Datos institucionales, claves oficiales y croquis arquitectónico[cite: 1].' },
+            'mod2': { title: '2. Infraestructura y Servicios (25%)', tag: 'Cédula Sección I[cite: 1]', desc: 'Dormitorios por sexo, consultorio, sanitarios y cocina[cite: 1].' },
+            'mod3': { title: '3. Organización del Establecimiento (10%)', tag: 'Cédula Sección III[cite: 1]', desc: 'Aviso de funcionamiento, manuales y carteles de derechos[cite: 1].' },
+            'mod4': { title: '4. Recursos Humanos y Cédulas (20%)', tag: 'Cédula Sección IV[cite: 1]', desc: 'Médico responsable 40 hrs/sem y certificados de consejeros[cite: 1].' },
+            'mod5': { title: '5. Proceso de Ingreso de Usuarios (30% Pt. 1)', tag: 'Cédula Sección V[cite: 1]', desc: 'Entrevista inicial, valoración médica y consentimiento voluntario[cite: 1].' },
+            'mod6': { title: '6. Acompañamiento y Clínica (30% Pt. 2)', tag: 'Cédula Sección V[cite: 1]', desc: 'Cronograma, plan terapéutico y bitácoras de medicación[cite: 1].' },
+            'mod7': { title: '7. Egreso y Seguimiento de Casos', tag: 'Cédula Sección V[cite: 1]', desc: 'Notas médicas de egreso y seguimiento post-tratamiento[cite: 1].' },
+            'mod8': { title: '8. Servicio Alimentación (10%) & Quejas (5%)', tag: 'Cédula Sección II & VI[cite: 1]', desc: 'Menús balanceados y apertura mensual del buzón de quejas[cite: 1].' }
+        };
+
+        function renderGenericModule(modKey) {
+            const config = moduleMap[modKey] || { title: 'Módulo de Cédula', tag: 'Sección', desc: 'Evidencias del requerimiento.' };
+            document.getElementById('mod-title').innerText = config.title;
+            document.getElementById('mod-tag').innerText = config.tag;
+            document.getElementById('mod-desc').innerText = config.desc;
+            document.getElementById('page-title').innerText = config.title;
+
+            const body = document.getElementById('module-table-body');
+            body.innerHTML = `
+                <tr class="hover:bg-obsidian-850">
+                    <td class="p-3 font-bold text-gold-400">1.1</td>
+                    <td class="p-3 font-medium text-stone-200">Documentación y Evidencia Fotográfica Principal</td>
+                    <td class="p-3"><span class="bg-gold-500/10 text-gold-300 border border-gold-600/30 px-2 py-0.5 rounded text-[10px] font-bold">PDF / JPG</span></td>
+                    <td class="p-3"><span class="bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 px-2 py-0.5 rounded text-[10px] font-bold"><i class="fa-solid fa-check mr-1"></i>Aprobado</span></td>
+                    <td class="p-3 text-stone-400">2026-08-12</td>
+                    <td class="p-3 text-right">
+                        <button onclick="alert('Abriendo visor seguro encriptado...')" class="text-gold-400 hover:text-gold-300 font-bold text-xs"><i class="fa-solid fa-eye mr-1"></i>Ver</button>
+                    </td>
+                </tr>
+            `;
+        }
+
+        function renderChecklist() {
+            const body = document.getElementById('sim-checklist-body');
+            body.innerHTML = '';
+
+            let currentScore = 0;
+            let maxTotal = 0;
+
+            state.checklist.forEach((item, index) => {
+                maxTotal += item.max;
+                if (item.check) currentScore += item.weight;
+
+                const tr = document.createElement('tr');
+                tr.className = "hover:bg-obsidian-850 border-b border-stone-850 transition";
+                tr.innerHTML = `
+                    <td class="p-3 text-center">
+                        <input type="checkbox" ${item.check ? 'checked' : ''} onchange="toggleSimCheck(${index})" class="w-4 h-4 text-gold-500 accent-gold-500 rounded cursor-pointer">
+                    </td>
+                    <td class="p-3">
+                        <div class="font-bold text-stone-200">${item.name}</div>
+                        <div class="text-[10px] text-stone-400 flex items-center gap-2 mt-0.5">
+                            <span>Módulo: ${item.sec}</span>
+                            ${item.mandatory ? '<span class="bg-rose-950 border border-rose-600/40 text-rose-300 font-bold px-1.5 py-0.2 rounded text-[9px]">CRITERIO OBLIGATORIO</span>' : ''}
+                        </div>
+                    </td>
+                    <td class="p-3 text-center font-bold text-gold-400">
+                        ${item.check ? item.weight.toFixed(1) : '0.0'} / ${item.max.toFixed(1)} pts
+                    </td>
+                    <td class="p-3">
+                        <span class="text-[11px] font-mono text-stone-300 bg-obsidian-800 px-2 py-1 rounded border border-stone-700 block truncate" title="${item.file}">
+                            <i class="fa-solid fa-paperclip text-gold-400 mr-1"></i>${item.file}
+                        </span>
+                    </td>
+                `;
+                body.appendChild(tr);
+            });
+
+            const percentage = ((currentScore / maxTotal) * 100).toFixed(1);
+            document.getElementById('sim-total-score').innerText = percentage + '%';
+            document.getElementById('dash-score-total').innerText = percentage + '%';
+
+            const badge = document.getElementById('sim-status-badge');
+            if (percentage >= 80) {
+                badge.className = "bg-emerald-500 text-black font-bold text-[10px] uppercase px-2.5 py-0.5 rounded-full inline-block";
+                badge.innerText = "APROBADO";
+            } else {
+                badge.className = "bg-rose-600 text-white font-bold text-[10px] uppercase px-2.5 py-0.5 rounded-full inline-block";
+                badge.innerText = "NO ACREDITADO";
+            }
+        }
+
+        function toggleSimCheck(index) {
+            state.checklist[index].check = !state.checklist[index].check;
+            renderChecklist();
+            updateChart();
+        }
+
+        function checkAllSim(status) {
+            state.checklist.forEach(i => i.check = status);
+            renderChecklist();
+            updateChart();
+        }
+
+        function renderRepoGrid() {
+            const grid = document.getElementById('repo-grid');
+            grid.innerHTML = '';
+
+            state.repositoryFiles.forEach(f => {
+                const card = document.createElement('div');
+                card.className = "bg-obsidian-850 border border-stone-800 rounded-2xl p-4 hover:border-gold-600/50 transition flex flex-col justify-between space-y-3";
+                card.innerHTML = `
+                    <div class="flex items-start justify-between">
+                        <div class="w-10 h-10 rounded-xl bg-gold-500/10 border border-gold-500/30 text-gold-400 flex items-center justify-center font-bold text-sm">
+                            <i class="fa-solid ${f.type === 'PDF' ? 'fa-file-pdf text-rose-400' : f.type === 'JPG' ? 'fa-image text-emerald-400' : 'fa-file-excel text-emerald-500'}"></i>
+                        </div>
+                        <span class="text-[10px] bg-obsidian-800 border border-stone-700 text-gold-400 px-2 py-0.5 rounded-full font-semibold">${f.sec}</span>
+                    </div>
+
+                    <div>
+                        <h4 class="font-bold text-stone-200 text-xs truncate" title="${f.name}">${f.name}</h4>
+                        <p class="text-[10px] text-stone-400 mt-0.5">${f.size} • ${f.date}</p>
+                    </div>
+
+                    <div class="pt-2 border-t border-stone-800 flex items-center justify-between text-xs">
+                        <span class="text-[10px] font-bold ${f.status === 'Aprobado' ? 'text-emerald-400' : 'text-amber-400'}">${f.status}</span>
+                        <button onclick="alert('Abriendo visor seguro de documento...')" class="text-gold-400 hover:text-gold-300 font-bold text-[11px]">Ver <i class="fa-solid fa-arrow-right ml-0.5"></i></button>
+                    </div>
+                `;
+                grid.appendChild(card);
+            });
+        }
+
+        function openUploadModal(secName) {
+            document.getElementById('modal-upload').classList.remove('hidden');
+        }
+
+        function closeUploadModal() {
+            document.getElementById('modal-upload').classList.add('hidden');
+        }
+
+        function triggerModuleUpload() {
+            openUploadModal();
+        }
+
+        function submitUploadSim() {
+            const docName = document.getElementById('upload-doc-name').value || 'Evidencia_Nueva.pdf';
+            const secSelect = document.getElementById('upload-section-select').value;
+
+            state.repositoryFiles.unshift({
+                name: docName.replace(/\s+/g, '_') + '.pdf',
+                sec: secSelect,
+                size: '2.1 MB',
+                type: 'PDF',
+                status: 'Pendiente',
+                date: new Date().toISOString().split('T')[0]
+            });
+
+            renderRepoGrid();
+            closeUploadModal();
+            alert('¡Evidencia cargada y encriptada exitosamente en la Bóveda!');
+        }
+
+        function generateDictamenModal() {
+            const score = document.getElementById('sim-total-score').innerText;
+            const notes = document.getElementById('sim-notes').value || 'El establecimiento cumple con la totalidad de los requerimientos y la ponderación aprobatoria estipulada.';
+            const inspector = document.getElementById('sim-inspector').value;
+
+            document.getElementById('modal-dictamen-score').innerText = score + ' DE CUMPLIMIENTO';
+            document.getElementById('modal-dictamen-notes').innerText = notes;
+            document.getElementById('modal-dictamen-inspector-name').innerText = inspector;
+
+            const verdict = document.getElementById('modal-dictamen-verdict');
+            if (parseFloat(score) >= 80) {
+                verdict.innerText = "ESTADO: ACREDITADO / CUMPLE CON EL RECONOCIMIENTO OFICIAL";
+                verdict.className = "text-xs font-bold text-emerald-400";
+            } else {
+                verdict.innerText = "ESTADO: NO ACREDITADO / REQUIERE ATENDER OMISIONES";
+                verdict.className = "text-xs font-bold text-rose-400";
+            }
+
+            document.getElementById('modal-dictamen').classList.remove('hidden');
+        }
+
+        function closeDictamenModal() {
+            document.getElementById('modal-dictamen').classList.add('hidden');
+        }
+
+        let chartInstance = null;
+        function initChart() {
+            const ctx = document.getElementById('weightingChart').getContext('2d');
+            chartInstance = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: ['Acompañ. (30%)', 'Infra. (25%)', 'RRHH (20%)', 'Org. (10%)', 'Alim. (10%)', 'Quejas (5%)'],
+                    datasets: [{
+                        data: [27, 23.5, 18, 8, 9.5, 5],
+                        backgroundColor: ['#d4af37', '#f59e0b', '#fbbf24', '#b45309', '#eab308', '#78350f'],
+                        borderRadius: 8
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { display: false } },
+                    scales: {
+                        y: { 
+                            beginAtZero: true, 
+                            max: 30,
+                            ticks: { color: '#a8a29e' },
+                            grid: { color: '#292524' }
+                        },
+                        x: {
+                            ticks: { color: '#d4af37', font: { size: 10 } },
+                            grid: { display: false }
+                        }
+                    }
+                }
+            });
+        }
+
+        function updateChart() {
+            if (chartInstance) chartInstance.update();
+        }
+
+        window.onload = () => {
+            applyRolePermissions();
+            renderChecklist();
+            renderRepoGrid();
+            initChart();
+        };
+    </script>
+</body>
+</html>

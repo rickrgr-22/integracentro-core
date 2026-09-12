@@ -1,0 +1,141 @@
+version: '3.8'
+
+services:
+  # --------------------------------------------------------
+  # CAPA DE DATOS (APP-04 Motor Transaccional)
+  # --------------------------------------------------------
+  postgres:
+    image: postgres:15-alpine
+    container_name: ic_postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: integracentro_db
+      POSTGRES_USER: ic_admin
+      POSTGRES_PASSWORD: IC_Segura_2026!Local
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - integracentro-net
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+
+  # --------------------------------------------------------
+  # CAPA DE CACHÉ (Sesiones y Catálogos en memoria)
+  # --------------------------------------------------------
+  redis:
+    image: redis:7-alpine
+    container_name: ic_redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - integracentro-net
+    deploy:
+      resources:
+        limits:
+          memory: 128M
+
+  # --------------------------------------------------------
+  # MICROSERVICIOS (Backend API)
+  # --------------------------------------------------------
+  iam-service:
+    build: 
+      context: ./apps/iam-service
+    container_name: ic_iam_service
+    environment:
+      - NODE_ENV=development
+      - DB_HOST=postgres
+      - DB_USER=ic_admin
+      - DB_PASS=IC_Segura_2026!Local
+      - DB_NAME=integracentro_db
+      - REDIS_HOST=redis
+    ports:
+      - "3001:3000"
+    depends_on:
+      - postgres
+      - redis
+    networks:
+      - integracentro-net
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+
+  scoring-engine:
+    build: 
+      context: ./apps/scoring-engine
+    container_name: ic_scoring_engine
+    environment:
+      - NODE_ENV=development
+      - DB_HOST=postgres
+      - REDIS_HOST=redis
+    ports:
+      - "3002:3000"
+    depends_on:
+      - postgres
+      - redis
+    networks:
+      - integracentro-net
+    deploy:
+      resources:
+        limits:
+          memory: 384M
+
+  vault-manager:
+    build: 
+      context: ./apps/vault-manager
+    container_name: ic_vault_manager
+    environment:
+      - NODE_ENV=development
+      - DB_HOST=postgres
+      - VAULT_PATH=/boveda-evidencias
+    ports:
+      - "3003:3000"
+    volumes:
+      - vault_data:/boveda-evidencias
+    depends_on:
+      - postgres
+    networks:
+      - integracentro-net
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+
+  # --------------------------------------------------------
+  # FRONTEND (APP-02 PWA)
+  # --------------------------------------------------------
+  pwa-client:
+    build: 
+      context: ./apps/pwa-client
+    container_name: ic_pwa_client
+    ports:
+      - "8080:80"
+    networks:
+      - integracentro-net
+    deploy:
+      resources:
+        limits:
+          memory: 128M
+
+# --------------------------------------------------------
+# VOLÚMENES Y REDES (Infraestructura Local)
+# --------------------------------------------------------
+volumes:
+  postgres_data:
+    name: ic_postgres_data
+  redis_data:
+    name: ic_redis_data
+  vault_data:
+    name: ic_vault_boveda
+
+networks:
+  integracentro-net:
+    name: integracentro_bridge
+    driver: bridge

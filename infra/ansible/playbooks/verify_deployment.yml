@@ -1,0 +1,67 @@
+---
+- name: Validación del Entorno Local Docker Compose
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  vars:
+    containers:
+      - ic_postgres
+      - ic_redis
+      - ic_iam_service
+      - ic_scoring_engine
+      - ic_vault_manager
+      - ic_pwa_client
+
+    http_endpoints:
+      - name: "IAM Service"
+        url: "http://localhost:3001/health"
+        expected_status: 200
+      - name: "Scoring Engine"
+        url: "http://localhost:3002/health"
+        expected_status: 200
+      - name: "Vault Manager"
+        url: "http://localhost:3003/health"
+        expected_status: 200
+      - name: "PWA Frontend"
+        url: "http://localhost:8080/"
+        expected_status: 200
+
+  tasks:
+    - name: "1. Verificar que los contenedores estén en estado 'running'"
+      ansible.builtin.command: "docker inspect -f '{{ '{{' }}.State.Status{{ '}}' }}' {{ item }}"
+      register: container_status
+      changed_when: false
+      failed_when: container_status.stdout != "running"
+      loop: "{{ containers }}"
+
+    - name: "2. Validar disponibilidad de PostgreSQL (pg_isready)"
+      ansible.builtin.command: "docker exec ic_postgres pg_isready -U ic_admin -d integracentro_db"
+      register: pg_status
+      changed_when: false
+      until: pg_status.rc == 0
+      retries: 5
+      delay: 3
+
+    - name: "3. Validar disponibilidad de Redis (PING -> PONG)"
+      ansible.builtin.command: "docker exec ic_redis redis-cli ping"
+      register: redis_status
+      changed_when: false
+      until: "'PONG' in redis_status.stdout"
+      retries: 5
+      delay: 2
+
+    - name: "4. Validar endpoints HTTP expuestos en localhost"
+      ansible.builtin.uri:
+        url: "{{ item.url }}"
+        method: GET
+        status_code: "{{ item.expected_status }}"
+        return_content: true
+      register: uri_check
+      until: uri_check.status == item.expected_status
+      retries: 6
+      delay: 3
+      loop: "{{ http_endpoints }}"
+
+    - name: "Resumen de Validación"
+      ansible.builtin.debug:
+        msg: "Entorno local verificado con éxito. Contenedores activos, bases de datos disponibles y endpoints HTTP respondiendo en localhost."
