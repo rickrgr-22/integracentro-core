@@ -3,18 +3,17 @@ import crypto from 'crypto';
 import fs from 'fs';
 import path from 'path';
 import multer from 'multer';
+import exifr from 'exifr';
 import { pool, query } from './db';
 
 const app = express();
 const port = process.env.PORT || 3000;
 const uploadDir = process.env.UPLOAD_DIR || '/data/evidencias';
 
-// Garantizar que la ruta del PVC exista al arrancar
 if (!fs.existsSync(uploadDir)) {
   fs.mkdirSync(uploadDir, { recursive: true });
 }
 
-// Configuración de almacenamiento en disco con Multer
 const storage = multer.diskStorage({
   destination: (_req, _file, cb) => {
     cb(null, uploadDir);
@@ -26,7 +25,6 @@ const storage = multer.diskStorage({
   },
 });
 
-// Validación estricta de extensiones y tipos MIME
 const TIPOS_PERMITIDOS = [
   'application/pdf',
   'image/jpeg',
@@ -58,7 +56,7 @@ const upload = multer({
   storage,
   fileFilter,
   limits: {
-    fileSize: 25 * 1024 * 1024, // 25 MB máximo
+    fileSize: 25 * 1024 * 1024,
   },
 });
 
@@ -93,7 +91,7 @@ app.get('/health', async (_req: Request, res: Response) => {
   }
 });
 
-// Subida y sellado de archivos binarios (multipart/form-data)
+// Subida binaria multipart con extracción EXIF / GPS
 app.post('/evidencias/upload', (req: Request, res: Response) => {
   upload.single('archivo')(req, res, async (err: any) => {
     if (err instanceof multer.MulterError) {
@@ -121,26 +119,83 @@ app.post('/evidencias/upload', (req: Request, res: Response) => {
         centro_id = centroDefecto.rows[0].id;
       }
 
-      // Sellado SHA-256 calculado sobre el archivo guardado en el PVC
+      // 1. Sellado criptográfico SHA-256
       const fileBuffer = fs.readFileSync(req.file.path);
       const hash_sha256 = crypto.createHash('sha256').update(fileBuffer).digest('hex');
 
+      // 2. Extracción de metadatos EXIF y GPS si es imagen
+      let metadatos: Record<string, any> | null = null;
+      const esImagen = req.file.mimetype.startsWith('image/');
+
+      if (esImagen) {
+        try {
+          const [gpsData, exifData] = await Promise.all([
+            exifr.gps(req.file.path),
+            exifr.parse(req.file.path, [
+              'Make',
+              'Model',
+              'DateTimeOriginal',
+              'CreateDate',
+              'Software',
+              'Orientation',
+              'ImageWidth',
+              'ImageHeight',
+            ]),
+          ]);
+
+          if (gpsData || exifData) {
+            metadatos = {
+              geolocalizacion: gpsData
+                ? {
+                    latitud: gpsData.latitude,
+                    longitud: gpsData.longitude,
+                    altitud: gpsData.altitude ?? null,
+                  }
+                : null,
+              dispositivo: exifData
+                ? {
+                    fabricante: exifData.Make ?? null,
+                    modelo: exifData.Model ?? null,
+                    software: exifData.Software ?? null,
+                    fecha_captura: exifData.DateTimeOriginal ?? exifData.CreateDate ?? null,
+                    dimensiones: {
+                      ancho: exifData.ImageWidth ?? null,
+                      alto: exifData.ImageHeight ?? null,
+                    },
+                  }
+                : null,
+            };
+          }
+        } catch (exifErr) {
+          console.warn('[EXIF] Archivo sin etiquetas EXIF o ilegibles:', exifErr);
+          metadatos = null;
+        }
+      }
+
+      // 3. Persistencia en PostgreSQL
       const insertSql = `
-        INSERT INTO expedientes_evidencias (centro_id, ruta_archivo, hash_sha256, valido)
-        VALUES ($1, $2, $3, $4)
-        RETURNING id, centro_id, ruta_archivo, hash_sha256, valido, created_at;
+        INSERT INTO expedientes_evidencias (centro_id, ruta_archivo, hash_sha256, metadatos, valido)
+        VALUES ($1, $2, $3, $4, $5)
+        RETURNING id, centro_id, ruta_archivo, hash_sha256, metadatos, valido, created_at;
       `;
-      const valores = [centro_id, req.file.path, hash_sha256, valido !== 'false'];
+      const valores = [
+        centro_id,
+        req.file.path,
+        hash_sha256,
+        metadatos ? JSON.stringify(metadatos) : null,
+        valido !== 'false',
+      ];
       const result = await query(insertSql, valores);
 
       res.status(201).json({
-        mensaje: 'Evidencia almacenada en PVC y sellada con SHA-256',
+        mensaje: 'Evidencia almacenada, sellada y analizada con exifr',
         archivo: {
           nombre_original: req.file.originalname,
           mimetype: req.file.mimetype,
           tamanio_bytes: req.file.size,
           ruta_pvc: req.file.path,
         },
+        metadatos_extraidos: metadatos,
         evidencia: result.rows[0],
       });
     } catch (dbError: any) {
@@ -156,7 +211,7 @@ app.post('/evidencias/upload', (req: Request, res: Response) => {
 // Endpoint legacy JSON para pruebas directas / Ansible
 app.post('/evidencias', async (req: Request, res: Response) => {
   try {
-    let { centro_id, ruta_archivo, contenido, hash_sha256, valido } = req.body;
+    let { centro_id, ruta_archivo, contenido, hash_sha256, metadatos, valido } = req.body;
 
     if (!ruta_archivo) {
       return res.status(400).json({ error: 'El campo ruta_archivo es obligatorio' });
@@ -179,11 +234,17 @@ app.post('/evidencias', async (req: Request, res: Response) => {
     }
 
     const insertSql = `
-      INSERT INTO expedientes_evidencias (centro_id, ruta_archivo, hash_sha256, valido)
-      VALUES ($1, $2, $3, $4)
-      RETURNING id, centro_id, ruta_archivo, hash_sha256, valido, created_at;
+      INSERT INTO expedientes_evidencias (centro_id, ruta_archivo, hash_sha256, metadatos, valido)
+      VALUES ($1, $2, $3, $4, $5)
+      RETURNING id, centro_id, ruta_archivo, hash_sha256, metadatos, valido, created_at;
     `;
-    const valores = [centro_id, ruta_archivo, hash_sha256, valido ?? true];
+    const valores = [
+      centro_id,
+      ruta_archivo,
+      hash_sha256,
+      metadatos ? JSON.stringify(metadatos) : null,
+      valido ?? true,
+    ];
     const result = await query(insertSql, valores);
 
     res.status(201).json({
@@ -204,6 +265,7 @@ app.get('/evidencias', async (_req: Request, res: Response) => {
         e.id,
         e.ruta_archivo,
         e.hash_sha256,
+        e.metadatos,
         e.valido,
         e.created_at,
         c.nombre AS centro_nombre,
