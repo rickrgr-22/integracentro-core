@@ -18,4 +18,3 @@ pool.on('error', (err: Error) => {
 export const query = (text: string, params?: any[]): Promise<QueryResult<any>> => {
   return pool.query(text, params);
 };
-EOF
