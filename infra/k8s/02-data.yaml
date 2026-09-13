@@ -1,0 +1,85 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ic-postgres
+  namespace: integracentro-prod
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: ic-postgres
+  template:
+    metadata:
+      labels:
+        app: ic-postgres
+    spec:
+      containers:
+        - name: postgres
+          image: postgres:15-alpine
+          ports:
+            - containerPort: 5432
+          envFrom:
+            - secretRef:
+                name: ic-db-secret
+          resources:
+            limits:
+              memory: 384Mi
+              cpu: 500m
+            requests:
+              memory: 128Mi
+              cpu: 100m
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: ic-postgres
+  namespace: integracentro-prod
+spec:
+  selector:
+    app: ic-postgres
+  ports:
+    - port: 5432
+      targetPort: 5432
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ic-redis
+  namespace: integracentro-prod
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: ic-redis
+  template:
+    metadata:
+      labels:
+        app: ic-redis
+    spec:
+      containers:
+        - name: redis
+          image: redis:7-alpine
+          ports:
+            - containerPort: 6379
+          resources:
+            limits:
+              memory: 128Mi
+              cpu: 250m
+            requests:
+              memory: 64Mi
+              cpu: 50m
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: ic-redis
+  namespace: integracentro-prod
+spec:
+  selector:
+    app: ic-redis
+  ports:
+    - port: 6379
+      targetPort: 6379

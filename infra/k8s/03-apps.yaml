@@ -1,0 +1,210 @@
+# -------------------------------------------------------------
+# IAM SERVICE
+# -------------------------------------------------------------
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ic-iam-service
+  namespace: integracentro-prod
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: ic-iam-service
+  template:
+    metadata:
+      labels:
+        app: ic-iam-service
+    spec:
+      containers:
+        - name: iam-service
+          image: ghcr.io/rickrgr-22/ic-iam-service:latest
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 3000
+          envFrom:
+            - configMapRef:
+                name: ic-app-config
+            - secretRef:
+                name: ic-db-secret
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 3000
+            initialDelaySeconds: 10
+            periodSeconds: 15
+          resources:
+            limits:
+              memory: 256Mi
+              cpu: 250m
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: ic-iam-service
+  namespace: integracentro-prod
+spec:
+  selector:
+    app: ic-iam-service
+  ports:
+    - port: 3000
+      targetPort: 3000
+
+---
+# -------------------------------------------------------------
+# SCORING ENGINE
+# -------------------------------------------------------------
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ic-scoring-engine
+  namespace: integracentro-prod
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: ic-scoring-engine
+  template:
+    metadata:
+      labels:
+        app: ic-scoring-engine
+    spec:
+      containers:
+        - name: scoring-engine
+          image: ghcr.io/rickrgr-22/ic-scoring-engine:latest
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 3000
+          envFrom:
+            - configMapRef:
+                name: ic-app-config
+            - secretRef:
+                name: ic-db-secret
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 3000
+            initialDelaySeconds: 10
+            periodSeconds: 15
+          resources:
+            limits:
+              memory: 256Mi
+              cpu: 250m
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: ic-scoring-engine
+  namespace: integracentro-prod
+spec:
+  selector:
+    app: ic-scoring-engine
+  ports:
+    - port: 3000
+      targetPort: 3000
+
+---
+# -------------------------------------------------------------
+# VAULT MANAGER (Bóveda de Evidencias)
+# -------------------------------------------------------------
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ic-vault-manager
+  namespace: integracentro-prod
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: ic-vault-manager
+  template:
+    metadata:
+      labels:
+        app: ic-vault-manager
+    spec:
+      containers:
+        - name: vault-manager
+          image: ghcr.io/rickrgr-22/ic-vault-manager:latest
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 3000
+          envFrom:
+            - configMapRef:
+                name: ic-app-config
+            - secretRef:
+                name: ic-db-secret
+          volumeMounts:
+            - name: vault-storage
+              mountPath: /boveda-evidencias
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 3000
+            initialDelaySeconds: 10
+            periodSeconds: 15
+          resources:
+            limits:
+              memory: 256Mi
+              cpu: 250m
+      volumes:
+        - name: vault-storage
+          persistentVolumeClaim:
+            claimName: ic-vault-pvc
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: ic-vault-manager
+  namespace: integracentro-prod
+spec:
+  selector:
+    app: ic-vault-manager
+  ports:
+    - port: 3000
+      targetPort: 3000
+
+---
+# -------------------------------------------------------------
+# FRONTEND PWA (Nginx)
+# -------------------------------------------------------------
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ic-pwa-client
+  namespace: integracentro-prod
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: ic-pwa-client
+  template:
+    metadata:
+      labels:
+        app: ic-pwa-client
+    spec:
+      containers:
+        - name: pwa-client
+          image: ghcr.io/rickrgr-22/ic-pwa-client:latest
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 80
+          resources:
+            limits:
+              memory: 128Mi
+              cpu: 100m
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: ic-pwa-client
+  namespace: integracentro-prod
+spec:
+  selector:
+    app: ic-pwa-client
+  ports:
+    - port: 80
+      targetPort: 80

@@ -1,67 +1,123 @@
 ---
-- name: Validación del Entorno Local Docker Compose
+- name: Validar despliegue de IntegraCentro en Kubernetes
   hosts: localhost
   connection: local
   gather_facts: false
   vars:
-    containers:
-      - ic_postgres
-      - ic_redis
-      - ic_iam_service
-      - ic_scoring_engine
-      - ic_vault_manager
-      - ic_pwa_client
-
-    http_endpoints:
-      - name: "IAM Service"
-        url: "http://localhost:3001/health"
-        expected_status: 200
-      - name: "Scoring Engine"
-        url: "http://localhost:3002/health"
-        expected_status: 200
-      - name: "Vault Manager"
-        url: "http://localhost:3003/health"
-        expected_status: 200
-      - name: "PWA Frontend"
-        url: "http://localhost:8080/"
-        expected_status: 200
+    k8s_namespace: integracentro-prod
+    ingress_host: integracentro.local
+    base_url: "http://{{ ingress_host }}"
 
   tasks:
-    - name: "1. Verificar que los contenedores estén en estado 'running'"
-      ansible.builtin.command: "docker inspect -f '{{ '{{' }}.State.Status{{ '}}' }}' {{ item }}"
-      register: container_status
+    - name: "1. Obtener estado de los Pods en {{ k8s_namespace }}"
+      ansible.builtin.command: >
+        kubectl get pods -n {{ k8s_namespace }} --no-headers
+      register: pods_output
       changed_when: false
-      failed_when: container_status.stdout != "running"
-      loop: "{{ containers }}"
 
-    - name: "2. Validar disponibilidad de PostgreSQL (pg_isready)"
-      ansible.builtin.command: "docker exec ic_postgres pg_isready -U ic_admin -d integracentro_db"
-      register: pg_status
+    - name: "2. Verificar que no existan Pods en CrashLoopBackOff o Error"
+      ansible.builtin.assert:
+        that:
+          - "'CrashLoopBackOff' not in pods_output.stdout"
+          - "'Error' not in pods_output.stdout"
+        fail_msg: "Se detectaron pods en estado de fallo dentro de {{ k8s_namespace }}."
+        success_msg: "Todos los pods operan sin reinicios anomalos."
+
+    - name: "3. Validar disponibilidad directa del motor PostgreSQL"
+      ansible.builtin.command: >
+        kubectl exec -n {{ k8s_namespace }} deployment/ic-postgres -- pg_isready -U ic_admin -d integracentro_db
+      register: pg_ready
       changed_when: false
-      until: pg_status.rc == 0
-      retries: 5
-      delay: 3
+      failed_when: pg_ready.rc != 0
 
-    - name: "3. Validar disponibilidad de Redis (PING -> PONG)"
-      ansible.builtin.command: "docker exec ic_redis redis-cli ping"
-      register: redis_status
-      changed_when: false
-      until: "'PONG' in redis_status.stdout"
-      retries: 5
-      delay: 2
-
-    - name: "4. Validar endpoints HTTP expuestos en localhost"
+    - name: "4. Validar Ingress HTTP: Frontend PWA (/)"
       ansible.builtin.uri:
-        url: "{{ item.url }}"
+        url: "{{ base_url }}/"
         method: GET
-        status_code: "{{ item.expected_status }}"
-        return_content: true
-      register: uri_check
-      until: uri_check.status == item.expected_status
+        status_code: 200
+        timeout: 5
+      register: pwa_resp
+      until: pwa_resp.status == 200
       retries: 6
       delay: 3
-      loop: "{{ http_endpoints }}"
 
-    - name: "Resumen de Validación"
+    - name: "5. Validar Ingress HTTP: IAM Health profundo (/api/iam/health)"
+      ansible.builtin.uri:
+        url: "{{ base_url }}/api/iam/health"
+        method: GET
+        status_code: 200
+        return_content: true
+        timeout: 5
+      register: iam_health_resp
+      until: >
+        iam_health_resp.status == 200 and
+        iam_health_resp.json.status == 'UP' and
+        iam_health_resp.json.database.status == 'CONNECTED'
+      retries: 6
+      delay: 3
+
+    - name: "6. Validar Ingress HTTP: Consulta de usuarios RBAC (/api/iam/users)"
+      ansible.builtin.uri:
+        url: "{{ base_url }}/api/iam/users"
+        method: GET
+        status_code: 200
+        return_content: true
+        timeout: 5
+      register: iam_users_resp
+      until: >
+        iam_users_resp.status == 200 and
+        iam_users_resp.json.total | int >= 1
+      retries: 6
+      delay: 3
+
+    - name: "7. Validar Ingress HTTP: Vault Health profundo (/api/vault/health)"
+      ansible.builtin.uri:
+        url: "{{ base_url }}/api/vault/health"
+        method: GET
+        status_code: 200
+        return_content: true
+        timeout: 5
+      register: vault_health_resp
+      until: >
+        vault_health_resp.status == 200 and
+        vault_health_resp.json.status == 'UP' and
+        vault_health_resp.json.database.status == 'CONNECTED'
+      retries: 6
+      delay: 3
+
+    - name: "8. Validar Ingress HTTP: Registrar y sellar evidencia (/api/vault/evidencias)"
+      ansible.builtin.uri:
+        url: "{{ base_url }}/api/vault/evidencias"
+        method: POST
+        body_format: json
+        body:
+          ruta_archivo: "/evidencias/ansible/smoke_test_doc.pdf"
+          contenido: "Certificado de prueba automatizada por Ansible Playbook"
+          valido: true
+        status_code: 201
+        return_content: true
+        timeout: 5
+      register: vault_post_resp
+
+    - name: "9. Validar Ingress HTTP: Consulta de evidencias selladas (/api/vault/evidencias)"
+      ansible.builtin.uri:
+        url: "{{ base_url }}/api/vault/evidencias"
+        method: GET
+        status_code: 200
+        return_content: true
+        timeout: 5
+      register: vault_get_resp
+      until: >
+        vault_get_resp.status == 200 and
+        vault_get_resp.json.total | int >= 1
+      retries: 6
+      delay: 3
+
+    - name: "10. Mostrar resumen general de infraestructura y microservicios"
       ansible.builtin.debug:
-        msg: "Entorno local verificado con éxito. Contenedores activos, bases de datos disponibles y endpoints HTTP respondiendo en localhost."
+        msg:
+          - "Frontend PWA: HTTP {{ pwa_resp.status }} (OK)"
+          - "IAM Service: {{ iam_health_resp.json.status }} (DB: {{ iam_health_resp.json.database.status }}, Usuarios: {{ iam_users_resp.json.total }})"
+          - "Vault Manager: {{ vault_health_resp.json.status }} (DB: {{ vault_health_resp.json.database.status }})"
+          - "Ultimo Hash SHA-256 sellado: {{ vault_post_resp.json.evidencia.hash_sha256 }}"
+          - "Total de evidencias en base de datos: {{ vault_get_resp.json.total }}"

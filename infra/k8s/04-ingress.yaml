@@ -1,0 +1,49 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: ic-ingress
+  namespace: integracentro-prod
+  annotations:
+    nginx.ingress.kubernetes.io/use-regex: "true"
+    nginx.ingress.kubernetes.io/rewrite-target: /$2
+    nginx.ingress.kubernetes.io/proxy-body-size: "25m"
+spec:
+  rules:
+    - host: integracentro.local
+      http:
+        paths:
+          # IAM Service (captura /api/iam -> / y /api/iam/users -> /users)
+          - path: /api/iam(/|$)(.*)
+            pathType: ImplementationSpecific
+            backend:
+              service:
+                name: ic-iam-service
+                port:
+                  number: 3000
+
+          # Scoring Engine
+          - path: /api/scoring(/|$)(.*)
+            pathType: ImplementationSpecific
+            backend:
+              service:
+                name: ic-scoring-engine
+                port:
+                  number: 3000
+
+          # Vault Manager
+          - path: /api/vault(/|$)(.*)
+            pathType: ImplementationSpecific
+            backend:
+              service:
+                name: ic-vault-manager
+                port:
+                  number: 3000
+
+          # Frontend PWA (captura la raíz y assets estáticos manteniendo compatibilidad con $2)
+          - path: /()(.*)
+            pathType: ImplementationSpecific
+            backend:
+              service:
+                name: ic-pwa-client
+                port:
+                  number: 80

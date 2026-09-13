@@ -1,0 +1,43 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ic-vault-manager
+  namespace: integracentro-prod
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: ic-vault-manager
+  template:
+    metadata:
+      labels:
+        app: ic-vault-manager
+    spec:
+      containers:
+        - name: vault-manager
+          image: ghcr.io/rickrgr-22/ic-vault-manager:latest
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 3000
+          env:
+            - name: PORT
+              value: "3000"
+            - name: DB_HOST
+              value: "ic-postgres"
+            - name: DB_PORT
+              value: "5432"
+            - name: POSTGRES_DB
+              value: "integracentro_db"
+            - name: POSTGRES_USER
+              value: "ic_admin"
+            - name: POSTGRES_PASSWORD
+              value: "IC_Segura_2026!Local"
+            - name: UPLOAD_DIR
+              value: "/data/evidencias"
+          volumeMounts:
+            - name: vault-storage
+              mountPath: /data/evidencias
+      volumes:
+        - name: vault-storage
+          persistentVolumeClaim:
+            claimName: ic-vault-pvc

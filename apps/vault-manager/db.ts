@@ -12,9 +12,10 @@ export const pool = new Pool({
 });
 
 pool.on('error', (err: Error) => {
-  console.error('[PostgreSQL Pool Error - Vault]: Cliente inactivo falló', err);
+  console.error('[PostgreSQL Pool Error - Vault]:', err);
 });
 
 export const query = (text: string, params?: any[]): Promise<QueryResult<any>> => {
   return pool.query(text, params);
 };
+EOF

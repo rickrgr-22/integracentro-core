@@ -1,0 +1,40 @@
+apiVersion: v1
+data:
+  init.sql: |
+    -- Esquema transaccional base IntegraCentro
+    CREATE TABLE IF NOT EXISTS usuarios_rbac (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        email VARCHAR(255) UNIQUE NOT NULL,
+        rol VARCHAR(50) NOT NULL,
+        created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+    );
+
+    CREATE TABLE IF NOT EXISTS centros_estancia (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        nombre VARCHAR(255) NOT NULL,
+        registro_sanitario VARCHAR(100) UNIQUE,
+        estatus VARCHAR(50) DEFAULT 'EN_REVISION',
+        created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+    );
+
+    CREATE TABLE IF NOT EXISTS expedientes_evidencias (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        centro_id UUID REFERENCES centros_estancia(id),
+        ruta_archivo TEXT NOT NULL,
+        hash_sha256 VARCHAR(64) NOT NULL,
+        valido BOOLEAN DEFAULT false,
+        created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+    );
+
+    -- Datos semilla para pruebas locales
+    INSERT INTO usuarios_rbac (email, rol)
+    VALUES ('admin@integracentro.local', 'ADMIN_SUPERVISOR')
+    ON CONFLICT (email) DO NOTHING;
+
+    INSERT INTO centros_estancia (nombre, registro_sanitario, estatus)
+    VALUES ('Centro Modelo Querétaro', 'REG-QRO-001', 'CERTIFICADO')
+    ON CONFLICT (registro_sanitario) DO NOTHING;
+kind: ConfigMap
+metadata:
+  name: ic-db-init-schema
+  namespace: integracentro-prod

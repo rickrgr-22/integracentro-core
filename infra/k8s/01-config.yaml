@@ -1,0 +1,24 @@
+apiVersion: v1
+kind: Secret
+metadata:
+  name: ic-db-secret
+  namespace: integracentro-prod
+type: Opaque
+stringData:
+  POSTGRES_DB: integracentro_db
+  POSTGRES_USER: ic_admin
+  POSTGRES_PASSWORD: IC_Segura_2026!Local
+
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: ic-app-config
+  namespace: integracentro-prod
+data:
+  NODE_ENV: production
+  DB_HOST: ic-postgres
+  DB_PORT: "5432"
+  REDIS_HOST: ic-redis
+  REDIS_PORT: "6379"
+  VAULT_PATH: /boveda-evidencias
