@@ -149,7 +149,7 @@ app.post('/evidencias/upload', (req: Request, res: Response) => {
                 ? {
                     latitud: gpsData.latitude,
                     longitud: gpsData.longitude,
-                    altitud: gpsData.altitude ?? null,
+                    altitud: (gpsData as any).altitude ?? null,
                   }
                 : null,
               dispositivo: exifData
