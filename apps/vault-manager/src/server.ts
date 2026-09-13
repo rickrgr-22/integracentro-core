@@ -9,7 +9,7 @@ const app = express();
 const port = process.env.PORT || 3000;
 const uploadDir = process.env.UPLOAD_DIR || '/data/evidencias';
 
-// Asegurar existencia del directorio del PVC al iniciar
+// Garantizar que la ruta del PVC exista al arrancar
 if (!fs.existsSync(uploadDir)) {
   fs.mkdirSync(uploadDir, { recursive: true });
 }
@@ -26,10 +26,39 @@ const storage = multer.diskStorage({
   },
 });
 
+// Validación estricta de extensiones y tipos MIME
+const TIPOS_PERMITIDOS = [
+  'application/pdf',
+  'image/jpeg',
+  'image/jpg',
+  'image/png',
+  'image/webp',
+];
+
+const fileFilter = (
+  _req: Request,
+  file: Express.Multer.File,
+  cb: multer.FileFilterCallback
+) => {
+  const extension = path.extname(file.originalname).toLowerCase();
+  const extensionesValidas = ['.pdf', '.jpg', '.jpeg', '.png', '.webp'];
+
+  if (TIPOS_PERMITIDOS.includes(file.mimetype) && extensionesValidas.includes(extension)) {
+    cb(null, true);
+  } else {
+    cb(
+      new Error(
+        `Formato de archivo no permitido (${file.mimetype}). Solo se aceptan PDF, JPG, PNG y WEBP.`
+      )
+    );
+  }
+};
+
 const upload = multer({
   storage,
+  fileFilter,
   limits: {
-    fileSize: 25 * 1024 * 1024, // Limite maximo de 25 MB por archivo
+    fileSize: 25 * 1024 * 1024, // 25 MB máximo
   },
 });
 
@@ -64,55 +93,67 @@ app.get('/health', async (_req: Request, res: Response) => {
   }
 });
 
-// Subida y sellado de archivos fisicos binarios (multipart/form-data)
-app.post('/evidencias/upload', upload.single('archivo'), async (req: Request, res: Response) => {
-  try {
-    if (!req.file) {
-      return res.status(400).json({ error: 'Debe adjuntar un archivo binario en el campo "archivo"' });
-    }
-
-    let { centro_id, valido } = req.body;
-
-    // Si no se indica centro_id, asociar al primer centro registrado
-    if (!centro_id) {
-      const centroDefecto = await query('SELECT id FROM centros_estancia LIMIT 1;');
-      if (centroDefecto.rows.length === 0) {
-        // Eliminar archivo cargado si falla la validacion de DB
-        fs.unlinkSync(req.file.path);
-        return res.status(400).json({ error: 'No existen centros de estancia registrados' });
+// Subida y sellado de archivos binarios (multipart/form-data)
+app.post('/evidencias/upload', (req: Request, res: Response) => {
+  upload.single('archivo')(req, res, async (err: any) => {
+    if (err instanceof multer.MulterError) {
+      if (err.code === 'LIMIT_FILE_SIZE') {
+        return res.status(400).json({ error: 'El archivo excede el limite de 25 MB' });
       }
-      centro_id = centroDefecto.rows[0].id;
+      return res.status(400).json({ error: `Error en la subida: ${err.message}` });
+    } else if (err) {
+      return res.status(400).json({ error: err.message });
     }
 
-    // Calcular hash criptografico SHA-256 del archivo persistido en el PVC
-    const fileBuffer = fs.readFileSync(req.file.path);
-    const hash_sha256 = crypto.createHash('sha256').update(fileBuffer).digest('hex');
+    if (!req.file) {
+      return res.status(400).json({ error: 'Debe adjuntar un archivo en el campo "archivo"' });
+    }
 
-    const insertSql = `
-      INSERT INTO expedientes_evidencias (centro_id, ruta_archivo, hash_sha256, valido)
-      VALUES ($1, $2, $3, $4)
-      RETURNING id, centro_id, ruta_archivo, hash_sha256, valido, created_at;
-    `;
-    const valores = [centro_id, req.file.path, hash_sha256, valido !== 'false'];
-    const result = await query(insertSql, valores);
+    try {
+      let { centro_id, valido } = req.body;
 
-    res.status(201).json({
-      mensaje: 'Archivo almacenado en PVC y sellado criptograficamente',
-      archivo: {
-        nombre_original: req.file.originalname,
-        tamanio_bytes: req.file.size,
-        mimetype: req.file.mimetype,
-        ruta_pvc: req.file.path,
-      },
-      evidencia: result.rows[0],
-    });
-  } catch (error: any) {
-    console.error('[Error POST /evidencias/upload]:', error);
-    res.status(500).json({ error: 'Error al procesar y almacenar el archivo binario' });
-  }
+      if (!centro_id) {
+        const centroDefecto = await query('SELECT id FROM centros_estancia LIMIT 1;');
+        if (centroDefecto.rows.length === 0) {
+          fs.unlinkSync(req.file.path);
+          return res.status(400).json({ error: 'No existen centros de estancia registrados' });
+        }
+        centro_id = centroDefecto.rows[0].id;
+      }
+
+      // Sellado SHA-256 calculado sobre el archivo guardado en el PVC
+      const fileBuffer = fs.readFileSync(req.file.path);
+      const hash_sha256 = crypto.createHash('sha256').update(fileBuffer).digest('hex');
+
+      const insertSql = `
+        INSERT INTO expedientes_evidencias (centro_id, ruta_archivo, hash_sha256, valido)
+        VALUES ($1, $2, $3, $4)
+        RETURNING id, centro_id, ruta_archivo, hash_sha256, valido, created_at;
+      `;
+      const valores = [centro_id, req.file.path, hash_sha256, valido !== 'false'];
+      const result = await query(insertSql, valores);
+
+      res.status(201).json({
+        mensaje: 'Evidencia almacenada en PVC y sellada con SHA-256',
+        archivo: {
+          nombre_original: req.file.originalname,
+          mimetype: req.file.mimetype,
+          tamanio_bytes: req.file.size,
+          ruta_pvc: req.file.path,
+        },
+        evidencia: result.rows[0],
+      });
+    } catch (dbError: any) {
+      if (req.file && fs.existsSync(req.file.path)) {
+        fs.unlinkSync(req.file.path);
+      }
+      console.error('[Error DB /evidencias/upload]:', dbError);
+      res.status(500).json({ error: 'Error registrando metadatos en base de datos' });
+    }
+  });
 });
 
-// Endpoint JSON legacy para pruebas directas / Ansible
+// Endpoint legacy JSON para pruebas directas / Ansible
 app.post('/evidencias', async (req: Request, res: Response) => {
   try {
     let { centro_id, ruta_archivo, contenido, hash_sha256, valido } = req.body;
@@ -125,7 +166,7 @@ app.post('/evidencias', async (req: Request, res: Response) => {
       hash_sha256 = crypto.createHash('sha256').update(contenido).digest('hex');
     } else if (!hash_sha256 || hash_sha256.length !== 64) {
       return res.status(400).json({
-        error: 'Debe proporcionar contenido para calcular el hash o un hash_sha256 valido de 64 caracteres',
+        error: 'Debe proporcionar contenido para calcular el hash o un hash_sha256 de 64 caracteres',
       });
     }
 
@@ -155,7 +196,7 @@ app.post('/evidencias', async (req: Request, res: Response) => {
   }
 });
 
-// Listar evidencias registradas
+// Listado general de evidencias
 app.get('/evidencias', async (_req: Request, res: Response) => {
   try {
     const sql = `
@@ -178,46 +219,10 @@ app.get('/evidencias', async (_req: Request, res: Response) => {
     });
   } catch (error: any) {
     console.error('[Error GET /evidencias]:', error);
-    res.status(500).json({ error: 'Error al consultar expedientes en PostgreSQL' });
+    res.status(500).json({ error: 'Error al consultar expedientes' });
   }
 });
-// Tipos de archivo permitidos para evidencias
-const TIPOS_PERMITIDOS = [
-  'application/pdf',
-  'image/jpeg',
-  'image/jpg',
-  'image/png',
-  'image/webp'
-];
 
-const fileFilter = (
-  _req: Request,
-  file: Express.Multer.File,
-  cb: multer.FileFilterCallback
-) => {
-  const extension = path.extname(file.originalname).toLowerCase();
-  const extensionesValidas = ['.pdf', '.jpg', '.jpeg', '.png', '.webp'];
-
-  if (TIPOS_PERMITIDOS.includes(file.mimetype) && extensionesValidas.includes(extension)) {
-    cb(null, true);
-  } else {
-    cb(
-      new Error(
-        `Formato de archivo no permitido (${file.mimetype}). Solo se aceptan PDF, JPG, PNG y WEBP.`
-      )
-    );
-  }
-};
-
-const upload = multer({
-  storage,
-  fileFilter,
-  limits: {
-    fileSize: 25 * 1024 * 1024, // Limite maximo de 25 MB por archivo
-  },
-});
-
-// Raiz informativa
 app.get('/', (_req: Request, res: Response) => {
   res.json({ message: 'IntegraCentro - Vault Manager API' });
 });
@@ -226,75 +231,15 @@ const server = app.listen(port, () => {
   console.log(`Vault Manager activo en puerto ${port}`);
 });
 
-app.post('/evidencias/upload', (req: Request, res: Response) => {
-  upload.single('archivo')(req, res, async (err: any) => {
-    if (err instanceof multer.MulterError) {
-      if (err.code === 'LIMIT_FILE_SIZE') {
-        return res.status(400).json({ error: 'El archivo excede el limite permitido de 25 MB' });
-      }
-      return res.status(400).json({ error: `Error de subida: ${err.message}` });
-    } else if (err) {
-      return res.status(400).json({ error: err.message });
-    }
-
-    if (!req.file) {
-      return res.status(400).json({ error: 'Debe adjuntar un archivo binario en el campo "archivo"' });
-    }
-
-    try {
-      let { centro_id, valido } = req.body;
-
-      if (!centro_id) {
-        const centroDefecto = await query('SELECT id FROM centros_estancia LIMIT 1;');
-        if (centroDefecto.rows.length === 0) {
-          fs.unlinkSync(req.file.path);
-          return res.status(400).json({ error: 'No existen centros de estancia registrados' });
-        }
-        centro_id = centroDefecto.rows[0].id;
-      }
-
-      // Sellado criptográfico SHA-256 del archivo físico (JPG, PNG o PDF)
-      const fileBuffer = fs.readFileSync(req.file.path);
-      const hash_sha256 = crypto.createHash('sha256').update(fileBuffer).digest('hex');
-
-      const insertSql = `
-        INSERT INTO expedientes_evidencias (centro_id, ruta_archivo, hash_sha256, valido)
-        VALUES ($1, $2, $3, $4)
-        RETURNING id, centro_id, ruta_archivo, hash_sha256, valido, created_at;
-      `;
-      const valores = [centro_id, req.file.path, hash_sha256, valido !== 'false'];
-      const result = await query(insertSql, valores);
-
-      res.status(201).json({
-        mensaje: 'Evidencia almacenada en PVC y sellada criptograficamente',
-        archivo: {
-          nombre_original: req.file.originalname,
-          mimetype: req.file.mimetype,
-          tamanio_bytes: req.file.size,
-          ruta_pvc: req.file.path,
-        },
-        evidencia: result.rows[0],
-      });
-    } catch (dbError: any) {
-      if (req.file && fs.existsSync(req.file.path)) {
-        fs.unlinkSync(req.file.path);
-      }
-      console.error('[Error DB /evidencias/upload]:', dbError);
-      res.status(500).json({ error: 'Error persistiendo metadatos en PostgreSQL' });
-    }
-  });
-});
-
-// Graceful Shutdown
 const gracefulShutdown = async (signal: string) => {
-  console.log(`Recibida señal ${signal}. Cerrando pool...`);
+  console.log(`Recibida señal ${signal}. Cerrando conexiones...`);
   server.close(async () => {
     try {
       await pool.end();
-      console.log('Pool de PostgreSQL cerrado.');
+      console.log('Pool de PostgreSQL cerrado exitosamente.');
       process.exit(0);
     } catch (err) {
-      console.error('Error cerrando pool:', err);
+      console.error('Error cerrando pool de PostgreSQL:', err);
       process.exit(1);
     }
   });
