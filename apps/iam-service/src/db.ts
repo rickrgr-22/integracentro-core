@@ -1,4 +1,3 @@
-cat << 'EOF' > apps/iam-service/src/db.ts
 import { Pool, QueryResult } from 'pg';
 
 export const pool = new Pool({
@@ -7,9 +6,9 @@ export const pool = new Pool({
   database: process.env.POSTGRES_DB || 'integracentro_db',
   user: process.env.POSTGRES_USER || 'ic_admin',
   password: process.env.POSTGRES_PASSWORD || 'IC_Segura_2026!Local',
-  max: 10, // Conexiones concurrentes máximas en el pool
-  idleTimeoutMillis: 30000, // Cerrar sockets inactivos tras 30s
-  connectionTimeoutMillis: 5000, // Límite de 5s para establecer conexión inicial
+  max: 10,
+  idleTimeoutMillis: 30000,
+  connectionTimeoutMillis: 5000,
 });
 
 pool.on('error', (err: Error) => {
@@ -19,4 +18,3 @@ pool.on('error', (err: Error) => {
 export const query = (text: string, params?: any[]): Promise<QueryResult<any>> => {
   return pool.query(text, params);
 };
-EOF

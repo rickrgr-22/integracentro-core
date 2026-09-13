@@ -1,4 +1,3 @@
-cat << 'EOF' > apps/iam-service/src/server.ts
 import express, { Request, Response } from 'express';
 import { pool, query } from './db';
 
@@ -59,7 +58,7 @@ const server = app.listen(port, () => {
 
 // Graceful Shutdown para Kubernetes (SIGTERM/SIGINT)
 const gracefulShutdown = async (signal: string) => {
-  console.log(`Recibida señal ${signal}. Cerrando conexiones...`);
+  console.log(`Recibida señal ${signal}. Cerrando servidor HTTP y conexiones de base de datos...`);
   server.close(async () => {
     try {
       await pool.end();
@@ -74,4 +73,3 @@ const gracefulShutdown = async (signal: string) => {
 
 process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
 process.on('SIGINT', () => gracefulShutdown('SIGINT'));
-EOF
