@@ -1,0 +1,114 @@
+name: Verify Kubernetes Deployment (Ansible)
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - 'infra/**'
+      - 'apps/**'
+      - '.github/workflows/verify-deployment.yml'
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  verify-e2e:
+    name: E2E Cluster Verification
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout del repositorio
+        uses: actions/checkout@v4
+
+      - name: Configurar Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Instalar Ansible y dependencias de prueba
+        run: |
+          python -m pip install --upgrade pip
+          pip install ansible pillow
+
+      - name: Iniciar Minikube con Ingress y Almacenamiento
+        uses: medyagh/setup-minikube@latest
+        with:
+          minikube-version: 'latest'
+          container-runtime: 'docker'
+          addons: 'ingress,storage-provisioner,default-storageclass'
+
+      - name: Esperar a que el Ingress Controller esté listo
+        run: |
+          kubectl rollout status deployment/ingress-nginx-controller -n ingress-nginx --timeout=120s
+
+      - name: Configurar DNS local (/etc/hosts)
+        run: |
+          MINIKUBE_IP=$(minikube ip)
+          echo "Asignando IP de Minikube ($MINIKUBE_IP) a integracentro.local..."
+          echo "$MINIKUBE_IP integracentro.local" | sudo tee -a /etc/hosts
+          cat /etc/hosts | grep integracentro.local
+
+      - name: Desplegar manifiestos de Kubernetes
+        run: |
+          kubectl apply -f infra/k8s/
+          echo "Esperando inicialización de Pods en integracentro-prod..."
+          kubectl wait --namespace integracentro-prod \
+            --for=condition=ready pod \
+            --all \
+            --timeout=180s
+
+      - name: Generar imagen de prueba con GPS real para Ansible
+        run: |
+          python - << 'EOF'
+          import datetime
+          from fractions import Fraction
+          from PIL import Image
+          from PIL.ExifTags import Base, IFD, GPS
+
+          def decdeg2dms(deg_float):
+              deg = int(abs(deg_float))
+              min_float = (abs(deg_float) - deg) * 60
+              minutes = int(min_float)
+              sec = round((min_float - minutes) * 60, 4)
+              return (Fraction(deg, 1), Fraction(minutes, 1), Fraction(sec).limit_denominator(1000))
+
+          img = Image.new("RGB", (800, 600), color=(41, 128, 185))
+          exif = img.getexif()
+
+          exif[Base.Make] = "Apple"
+          exif[Base.Model] = "iPhone 15 Pro"
+          exif[Base.Software] = "iOS 18.0"
+
+          fecha = datetime.datetime.now().strftime("%Y:%m:%d %H:%M:%S")
+          exif_ifd = exif.get_ifd(IFD.Exif)
+          exif_ifd[Base.DateTimeOriginal] = fecha
+          exif_ifd[Base.DateTimeDigitized] = fecha
+
+          gps_ifd = exif.get_ifd(IFD.GPSInfo)
+          gps_ifd[GPS.GPSLatitudeRef] = "N"
+          gps_ifd[GPS.GPSLatitude] = decdeg2dms(20.58882)
+          gps_ifd[GPS.GPSLongitudeRef] = "W"
+          gps_ifd[GPS.GPSLongitude] = decdeg2dms(-100.38988)
+          gps_ifd[GPS.GPSAltitudeRef] = 0
+          gps_ifd[GPS.GPSAltitude] = Fraction(1820, 1)
+
+          img.save("/tmp/evidencia_gps_real.jpg", "JPEG", exif=exif, quality=95)
+          print("[OK] Imagen con GPS sintético lista en /tmp/evidencia_gps_real.jpg")
+          EOF
+
+      - name: Ejecutar Playbook de Ansible
+        run: |
+          ansible-playbook -i infra/ansible/inventory.ini infra/ansible/playbooks/verify_deployment.yml
+
+      - name: Diagnóstico de depuración en caso de fallo
+        if: failure()
+        run: |
+          echo "=== Estado de los Pods ==="
+          kubectl get pods -n integracentro-prod -o wide
+          echo "=== Logs de Vault Manager ==="
+          kubectl logs -n integracentro-prod -l app=ic-vault-manager --all-containers=true --tail=50 || true
+          echo "=== Logs de IAM Service ==="
+          kubectl logs -n integracentro-prod -l app=ic-iam-service --all-containers=true --tail=50 || true
+          echo "=== Estado de Ingress ==="
+          kubectl describe ingress -n integracentro-prod || true
