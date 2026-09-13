@@ -7,6 +7,9 @@
     k8s_namespace: integracentro-prod
     ingress_host: integracentro.local
     base_url: "http://{{ ingress_host }}"
+    temp_test_image: "/tmp/ansible_smoke_test.jpg"
+    gps_test_image: "/tmp/evidencia_gps_real.jpg"
+    pdf_test_file: "/tmp/contrato_inspeccion.pdf"
 
   tasks:
     - name: "1. Obtener estado de los Pods en {{ k8s_namespace }}"
@@ -85,21 +88,151 @@
       retries: 6
       delay: 3
 
-    - name: "8. Validar Ingress HTTP: Registrar y sellar evidencia (/api/vault/evidencias)"
+    - name: "8. Validar Ingress HTTP: Registrar evidencia JSON (/api/vault/evidencias)"
       ansible.builtin.uri:
         url: "{{ base_url }}/api/vault/evidencias"
         method: POST
         body_format: json
         body:
-          ruta_archivo: "/evidencias/ansible/smoke_test_doc.pdf"
-          contenido: "Certificado de prueba automatizada por Ansible Playbook"
+          ruta_archivo: "/evidencias/ansible/smoke_test_metadata.pdf"
+          contenido: "Certificado de prueba automatizada JSON por Ansible"
           valido: true
         status_code: 201
         return_content: true
         timeout: 5
       register: vault_post_resp
 
-    - name: "9. Validar Ingress HTTP: Consulta de evidencias selladas (/api/vault/evidencias)"
+    - name: "9. Comprobar que exista la fotografía de prueba con EXIF/GPS"
+      ansible.builtin.stat:
+        path: "{{ gps_test_image }}"
+      register: gps_file_stat
+      failed_when: not gps_file_stat.stat.exists
+
+    - name: "10. Validar Ingress HTTP: Subir foto con GPS (/api/vault/evidencias/upload)"
+      ansible.builtin.command: >
+        curl -s -w "\n%{http_code}" -X POST {{ base_url }}/api/vault/evidencias/upload
+        -F "archivo=@{{ gps_test_image }}"
+        -F "valido=true"
+      register: upload_gps_raw
+      changed_when: false
+      failed_when: >
+        upload_gps_raw.rc != 0 or
+        upload_gps_raw.stdout_lines[-1] != '201'
+
+    - name: "11. Parsear respuesta JSON de la evidencia con GPS"
+      ansible.builtin.set_fact:
+        upload_gps_json: "{{ upload_gps_raw.stdout_lines[:-1] | join('\n') | from_json }}"
+
+    - name: "12. Aserción: Validar extracción de coordenadas GPS con exifr"
+      ansible.builtin.assert:
+        that:
+          - "upload_gps_json.metadatos_extraidos is defined"
+          - "upload_gps_json.metadatos_extraidos.geolocalizacion is defined"
+          - "upload_gps_json.metadatos_extraidos.geolocalizacion.latitud is not none"
+          - "upload_gps_json.metadatos_extraidos.geolocalizacion.longitud is not none"
+          - "upload_gps_json.metadatos_extraidos.geolocalizacion.latitud | float > 20.0"
+          - "upload_gps_json.metadatos_extraidos.geolocalizacion.longitud | float < -100.0"
+          - "upload_gps_json.metadatos_extraidos.dispositivo.fabricante == 'Apple'"
+        fail_msg: "Fallo en la extraccion de coordenadas GPS o fabricante."
+        success_msg: "Coordenadas GPS extraidas: Lat {{ upload_gps_json.metadatos_extraidos.geolocalizacion.latitud }}, Lng {{ upload_gps_json.metadatos_extraidos.geolocalizacion.longitud }}"
+
+    - name: "13. Generar archivo PDF sintetico con cabecera estandar"
+      ansible.builtin.copy:
+        content: |
+          %PDF-1.4
+          1 0 obj << /Type /Catalog /Pages 2 0 R >> endobj
+          2 0 obj << /Type /Pages /Kids [3 0 R] /Count 1 >> endobj
+          3 0 obj << /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] >> endobj
+          xref
+          0 4
+          0000000000 65535 f 
+          0000000010 00000 n 
+          0000000060 00000 n 
+          0000000117 00000 n 
+          trailer << /Size 4 /Root 1 0 R >>
+          startxref
+          190
+          %%EOF
+        dest: "{{ pdf_test_file }}"
+        mode: '0644'
+
+    - name: "14. Validar Ingress HTTP: Subir archivo PDF (/api/vault/evidencias/upload)"
+      ansible.builtin.command: >
+        curl -s -w "\n%{http_code}" -X POST {{ base_url }}/api/vault/evidencias/upload
+        -F "archivo=@{{ pdf_test_file }}"
+        -F "valido=true"
+      register: upload_pdf_raw
+      changed_when: false
+      failed_when: >
+        upload_pdf_raw.rc != 0 or
+        upload_pdf_raw.stdout_lines[-1] != '201'
+
+    - name: "15. Parsear respuesta JSON del archivo PDF"
+      ansible.builtin.set_fact:
+        upload_pdf_json: "{{ upload_pdf_raw.stdout_lines[:-1] | join('\n') | from_json }}"
+
+    - name: "16. Aserción estricta: Validar sellado SHA-256 y metadatos null en PDF"
+      ansible.builtin.assert:
+        that:
+          - "upload_pdf_json.evidencia.hash_sha256 is defined"
+          - "upload_pdf_json.evidencia.hash_sha256 | length == 64"
+          - "upload_pdf_json.archivo.mimetype == 'application/pdf'"
+          - "upload_pdf_json.metadatos_extraidos is none"
+          - "upload_pdf_json.evidencia.metadatos is none"
+          - "'/data/evidencias/' in upload_pdf_json.archivo.ruta_pvc"
+        fail_msg: "El PDF no se sello correctamente o asigno metadatos indebidos."
+        success_msg: >-
+          PDF validado con exito:
+          MIME: {{ upload_pdf_json.archivo.mimetype }},
+          Hash SHA-256: {{ upload_pdf_json.evidencia.hash_sha256 }},
+          Metadatos extraidos: {{ upload_pdf_json.metadatos_extraidos | default('null') }}
+
+    - name: "16.5. Limpiar archivo PDF temporal de la estacion de trabajo"
+      ansible.builtin.file:
+        path: "{{ pdf_test_file }}"
+        state: absent
+
+# --- PRUEBA NEGATIVA: BLOQUEO DE ARCHIVOS NO PERMITIDOS ---
+    - name: "17. Generar archivo ejecutable no permitido (.sh)"
+      ansible.builtin.copy:
+        content: |
+          #!/bin/bash
+          echo "Script malicioso simulado"
+        dest: "/tmp/script_no_permitido.sh"
+        mode: '0755'
+
+    - name: "18. Validar Ingress HTTP: Rechazo con HTTP 400 de archivo no permitido"
+      ansible.builtin.command: >
+        curl -s -w "\n%{http_code}" -X POST {{ base_url }}/api/vault/evidencias/upload
+        -F "archivo=@/tmp/script_no_permitido.sh"
+        -F "valido=true"
+      register: upload_forbidden_raw
+      changed_when: false
+      failed_when: >
+        upload_forbidden_raw.rc != 0 or
+        upload_forbidden_raw.stdout_lines[-1] != '400'
+
+    - name: "19. Parsear respuesta de error JSON"
+      ansible.builtin.set_fact:
+        upload_forbidden_json: "{{ upload_forbidden_raw.stdout_lines[:-1] | join('\n') | from_json }}"
+
+    - name: "20. Aserción estricta: Validar bloqueo por filtro MIME y extensión"
+      ansible.builtin.assert:
+        that:
+          - "upload_forbidden_raw.stdout_lines[-1] == '400'"
+          - "upload_forbidden_json.error is defined"
+          - "'Formato de archivo no permitido' in upload_forbidden_json.error"
+        fail_msg: "El filtro de seguridad no bloqueó el archivo ejecutable o la respuesta no devolvió HTTP 400."
+        success_msg: >-
+          Bloqueo exitoso (HTTP 400):
+          Mensaje: {{ upload_forbidden_json.error }}
+
+    - name: "21. Limpiar archivo de script no permitido local"
+      ansible.builtin.file:
+        path: "/tmp/script_no_permitido.sh"
+        state: absent
+
+    - name: "22. Validar Ingress HTTP: Consulta global de evidencias (/api/vault/evidencias)"
       ansible.builtin.uri:
         url: "{{ base_url }}/api/vault/evidencias"
         method: GET
@@ -109,15 +242,17 @@
       register: vault_get_resp
       until: >
         vault_get_resp.status == 200 and
-        vault_get_resp.json.total | int >= 1
+        vault_get_resp.json.total | int >= 3
       retries: 6
       delay: 3
 
-    - name: "10. Mostrar resumen general de infraestructura y microservicios"
+    - name: "23. Resumen general de auditoria operativa"
       ansible.builtin.debug:
         msg:
           - "Frontend PWA: HTTP {{ pwa_resp.status }} (OK)"
           - "IAM Service: {{ iam_health_resp.json.status }} (DB: {{ iam_health_resp.json.database.status }}, Usuarios: {{ iam_users_resp.json.total }})"
           - "Vault Manager: {{ vault_health_resp.json.status }} (DB: {{ vault_health_resp.json.database.status }})"
-          - "Ultimo Hash SHA-256 sellado: {{ vault_post_resp.json.evidencia.hash_sha256 }}"
-          - "Total de evidencias en base de datos: {{ vault_get_resp.json.total }}"
+          - "Evidencia 1 (JSON): {{ vault_post_resp.json.evidencia.hash_sha256 }}"
+          - "Evidencia 2 (Foto GPS): {{ upload_gps_json.evidencia.hash_sha256 }} (Lat/Lng: {{ upload_gps_json.metadatos_extraidos.geolocalizacion.latitud }}, {{ upload_gps_json.metadatos_extraidos.geolocalizacion.longitud }})"
+          - "Evidencia 3 (PDF): {{ upload_pdf_json.evidencia.hash_sha256 }} (Metadatos: {{ upload_pdf_json.metadatos_extraidos | default('null') }})"
+          - "Total de evidencias auditadas en PostgreSQL: {{ vault_get_resp.json.total }}"
