@@ -11,40 +11,35 @@ jobs:
   e2e-testing:
     runs-on: ubuntu-latest
     steps:
-      - name: 1. Descargar el repositorio
+      - name: "1. Descargar el repositorio"
         uses: actions/checkout@v4
 
-      - name: 2. Instalar Ansible
+      - name: "2. Instalar Ansible"
         run: sudo apt-get update && sudo apt-get install -y ansible
 
-      - name: 3. Iniciar Minikube con Ingress
+      - name: "3. Iniciar Minikube con Ingress"
         uses: medyagh/setup-minikube@latest
         with:
           addons: ingress
 
-      - name: 4. Desplegar la infraestructura (IntegraCentro)
+      - name: "4. Desplegar la infraestructura (IntegraCentro)"
         run: |
-          # Crear el namespace en el entorno virgen de GitHub Actions
           kubectl create namespace integracentro-prod
-          
-          # Aplicar los manifiestos
           kubectl apply -f infra/k8s/
-          
-          # Dar tiempo a que los servicios y pods inicien
           sleep 25
 
-      - name: 5. Iniciar Minikube Tunnel en segundo plano
+      - name: "5. Iniciar Minikube Tunnel en segundo plano"
         run: |
           sudo nohup minikube tunnel > tunnel.log 2>&1 &
           sleep 10
 
-      - name: 6. Ejecutar Playbook: IAM y MFA Pipeline
+      - name: "6. Ejecutar Playbook - IAM y MFA Pipeline"
         run: ansible-playbook infra/ansible/playbooks/integracentro-iam-pipeline.yml
 
-      - name: 7. Ejecutar Playbook: Validaciones E2E
+      - name: "7. Ejecutar Playbook - Validaciones E2E"
         run: ansible-playbook infra/ansible/playbooks/verify_deployment.yml
 
-      - name: 8. Depuración de logs (Solo si falla)
+      - name: "8. Depuracion de logs (Solo si falla)"
         if: failure()
         run: |
           kubectl get pods -A
