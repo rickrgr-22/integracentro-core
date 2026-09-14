@@ -1,0 +1,49 @@
+name: E2E Minikube Ansible Testing
+
+on:
+  push:
+    branches: [ "main", "master" ]
+  pull_request:
+    branches: [ "main", "master" ]
+  workflow_dispatch: # Permite ejecutarlo manualmente desde GitHub
+
+jobs:
+  e2e-testing:
+    runs-on: ubuntu-latest
+    steps:
+      - name: 1. Descargar el repositorio
+        uses: actions/checkout@v4
+
+      - name: 2. Instalar Ansible
+        run: sudo apt-get update && sudo apt-get install -y ansible
+
+      - name: 3. Iniciar Minikube con Ingress
+        uses: medyagh/setup-minikube@latest
+        with:
+          addons: ingress
+
+      - name: 4. Desplegar la infraestructura (IntegraCentro)
+        run: |
+          # Aquí debes colocar el comando que despliega tus pods y postgres
+          # Ejemplo: kubectl apply -k infra/k8s/overlays/prod
+          echo "Reemplaza esto con tu comando kubectl apply..."
+          
+          # Esperar a que los pods básicos estén listos
+          sleep 15 
+
+      - name: 5. Iniciar Minikube Tunnel en segundo plano
+        run: |
+          sudo nohup minikube tunnel > tunnel.log 2>&1 &
+          sleep 10 # Dar tiempo a que el puente de red se establezca
+
+      - name: 6. Ejecutar Playbook: IAM y MFA Pipeline
+        run: ansible-playbook infra/ansible/playbooks/integracentro-iam-pipeline.yml
+
+      - name: 7. Ejecutar Playbook: Validaciones E2E
+        run: ansible-playbook infra/ansible/playbooks/verify_deployment.yml
+
+      - name: 8. Depuración de logs (Solo si falla)
+        if: failure()
+        run: |
+          kubectl get pods -A
+          cat tunnel.log

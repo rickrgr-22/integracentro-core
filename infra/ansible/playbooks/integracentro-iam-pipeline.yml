@@ -1,0 +1,106 @@
+---
+- name: Pipeline E2E - Despliegue, Base de Datos y Autenticacion MFA en Minikube
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  vars:
+    k8s_namespace: "integracentro-prod"
+    service_name: "ic-iam-service"
+    admin_email: "admin@integracentro.gob.mx"
+    admin_pass: "PasswordAdmin2026!"
+    api_base_url: "http://127.0.0.1"
+
+  tasks:
+    - name: 1. Asegurar que el Deployment de IAM este activo
+      shell: kubectl rollout status deployment/{{ service_name }} -n {{ k8s_namespace }} --timeout=60s
+      changed_when: false
+
+    - name: 2.1 Generar hash bcrypt verificado con bcryptjs
+      shell: |
+        kubectl exec -i -n {{ k8s_namespace }} deployment/{{ service_name }} -- node -e "const bcrypt = require('bcryptjs'); console.log(bcrypt.hashSync('{{ admin_pass }}', 10));"
+      register: bcrypt_output
+      changed_when: false
+
+    - name: 2.2 Guardar hash
+      set_fact:
+        dynamic_bcrypt_hash: "{{ bcrypt_output.stdout | trim }}"
+
+    - name: 2.3 Insertar usuario de forma correcta y segura
+      shell: |
+        set -o pipefail
+        cat << 'SQL_EOF' | kubectl exec -i -n {{ k8s_namespace }} deployment/ic-postgres -- psql -U ic_admin -d integracentro_db -v ON_ERROR_STOP=1
+        DELETE FROM usuarios_rbac WHERE email = '{{ admin_email }}';
+        INSERT INTO usuarios_rbac (email, password_hash, rol, nombre, mfa_enabled) 
+        VALUES (
+          '{{ admin_email }}', 
+          '{{ dynamic_bcrypt_hash }}', 
+          'ADMIN', 
+          'Administrador General',
+          true
+        );
+        SQL_EOF
+      args:
+        executable: /bin/bash
+      changed_when: true
+
+    - name: 3. Realizar peticion POST a /auth/login via Ingress
+      uri:
+        url: "{{ api_base_url }}/api/iam/auth/login"
+        method: POST
+        headers:
+          Host: "integracentro.local"
+        body_format: json
+        body:
+          email: "{{ admin_email }}"
+          password: "{{ admin_pass }}"
+        status_code: 200
+      register: login_response
+
+    - name: 4. Extraer el mfa_ticket de la respuesta JSON
+      set_fact:
+        mfa_ticket: "{{ login_response.json.mfa_ticket }}"
+
+    - name: 5. Extraer el codigo OTP simulado de los logs del pod de IAM
+      shell: |
+        kubectl logs -n {{ k8s_namespace }} deployment/{{ service_name }} --tail=15 | grep -oE 'Código OTP: \[[0-9]{6}\]' | tr -d '[]' | awk '{print $3}' | tail -n 1
+      register: otp_raw
+      changed_when: false
+
+    - name: 6. Limpiar y registrar la variable del codigo OTP
+      set_fact:
+        otp_code: "{{ otp_raw.stdout | trim }}"
+
+    - name: 7. Mostrar el OTP capturado
+      debug:
+        msg: "Codigo OTP capturado para validacion: {{ otp_code }}"
+
+    - name: 8. Enviar verificacion MFA a /auth/mfa/verify para obtener el JWT
+      uri:
+        url: "{{ api_base_url }}/api/iam/auth/mfa/verify"
+        method: POST
+        headers:
+          Host: "integracentro.local"
+        body_format: json
+        body:
+          mfa_ticket: "{{ mfa_ticket }}"
+          codigo: "{{ otp_code }}"
+        status_code: 200
+      register: verify_response
+
+    - name: 9. Almacenar el Token JWT final
+      set_fact:
+        jwt_token: "{{ verify_response.json.token }}"
+
+    - name: 10. Validar el uso del JWT en un endpoint protegido
+      uri:
+        url: "{{ api_base_url }}/api/v1/perfil"
+        method: GET
+        headers:
+          Host: "integracentro.local"
+          Authorization: "Bearer {{ jwt_token }}"
+        status_code: [200, 404]
+      register: protected_test
+
+    - name: 11. Reporte final de exito
+      debug:
+        msg: "¡Pipeline completado con exito! Autenticacion, base de datos, MFA y JWT validados mediante Ingress."

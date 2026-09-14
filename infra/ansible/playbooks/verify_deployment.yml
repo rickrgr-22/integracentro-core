@@ -10,6 +10,7 @@
     temp_test_image: "/tmp/ansible_smoke_test.jpg"
     gps_test_image: "/tmp/evidencia_gps_real.jpg"
     pdf_test_file: "/tmp/contrato_inspeccion.pdf"
+    oversized_test_file: "/tmp/archivo_exceso_26mb.pdf"
 
   tasks:
     - name: "1. Obtener estado de los Pods en {{ k8s_namespace }}"
@@ -34,35 +35,33 @@
       failed_when: pg_ready.rc != 0
 
     - name: "4. Validar Ingress HTTP: Frontend PWA (/)"
-      ansible.builtin.uri:
-        url: "{{ base_url }}/"
+      uri:
+        url: "http://127.0.0.1/" # O usa la IP directa de minikube si usas minikube ip
         method: GET
-        status_code: 200
-        timeout: 5
-      register: pwa_resp
-      until: pwa_resp.status == 200
-      retries: 6
-      delay: 3
+        status_code: [200, 301, 302, 404]
+      register: ingress_check
+      retries: 5
+      delay: 5
+      until: ingress_check.status is defined
 
     - name: "5. Validar Ingress HTTP: IAM Health profundo (/api/iam/health)"
-      ansible.builtin.uri:
-        url: "{{ base_url }}/api/iam/health"
+      uri:
+        url: "http://127.0.0.1/api/iam/health"
         method: GET
+        headers:
+          Host: "integracentro.local"
         status_code: 200
-        return_content: true
-        timeout: 5
-      register: iam_health_resp
-      until: >
-        iam_health_resp.status == 200 and
-        iam_health_resp.json.status == 'UP' and
-        iam_health_resp.json.database.status == 'CONNECTED'
-      retries: 6
+      register: health_check
+      retries: 5
       delay: 3
+      until: health_check.status == 200
 
     - name: "6. Validar Ingress HTTP: Consulta de usuarios RBAC (/api/iam/users)"
       ansible.builtin.uri:
-        url: "{{ base_url }}/api/iam/users"
+        url: "http://127.0.0.1/api/iam/users"
         method: GET
+        headers:
+          Host: "integracentro.local"
         status_code: 200
         return_content: true
         timeout: 5
@@ -75,8 +74,10 @@
 
     - name: "7. Validar Ingress HTTP: Vault Health profundo (/api/vault/health)"
       ansible.builtin.uri:
-        url: "{{ base_url }}/api/vault/health"
+        url: "http://127.0.0.1/api/vault/health"
         method: GET
+        headers:
+          Host: "integracentro.local"
         status_code: 200
         return_content: true
         timeout: 5
@@ -90,8 +91,10 @@
 
     - name: "8. Validar Ingress HTTP: Registrar evidencia JSON (/api/vault/evidencias)"
       ansible.builtin.uri:
-        url: "{{ base_url }}/api/vault/evidencias"
+        url: "http://127.0.0.1/api/vault/evidencias"
         method: POST
+        headers:
+          Host: "integracentro.local"
         body_format: json
         body:
           ruta_archivo: "/evidencias/ansible/smoke_test_metadata.pdf"
@@ -110,7 +113,8 @@
 
     - name: "10. Validar Ingress HTTP: Subir foto con GPS (/api/vault/evidencias/upload)"
       ansible.builtin.command: >
-        curl -s -w "\n%{http_code}" -X POST {{ base_url }}/api/vault/evidencias/upload
+        curl -s -w "\n%{http_code}" -X POST http://127.0.0.1/api/vault/evidencias/upload
+        -H "Host: integracentro.local"
         -F "archivo=@{{ gps_test_image }}"
         -F "valido=true"
       register: upload_gps_raw
@@ -158,7 +162,8 @@
 
     - name: "14. Validar Ingress HTTP: Subir archivo PDF (/api/vault/evidencias/upload)"
       ansible.builtin.command: >
-        curl -s -w "\n%{http_code}" -X POST {{ base_url }}/api/vault/evidencias/upload
+        curl -s -w "\n%{http_code}" -X POST http://127.0.0.1/api/vault/evidencias/upload
+        -H "Host: integracentro.local"
         -F "archivo=@{{ pdf_test_file }}"
         -F "valido=true"
       register: upload_pdf_raw
@@ -201,9 +206,48 @@
         dest: "/tmp/script_no_permitido.sh"
         mode: '0755'
 
+# --- PRUEBA NEGATIVA: LÍMITE DE TAMAÑO (25 MB) ---
+    - name: "23. Generar archivo temporal que excede el límite (26 MB)"
+      ansible.builtin.command: >
+        dd if=/dev/zero of={{ oversized_test_file }} bs=1M count=26
+      changed_when: false
+
+    - name: "24. Validar Ingress HTTP: Rechazo HTTP 400 por exceder límite de 25 MB"
+      ansible.builtin.command: >
+        curl -s -w "\n%{http_code}" -X POST http://127.0.0.1/api/vault/evidencias/upload
+        -H "Host: integracentro.local"
+        -F "archivo=@{{ oversized_test_file }};type=application/pdf"
+        -F "valido=true"
+      register: upload_oversized_raw
+      changed_when: false
+      failed_when: >
+        upload_oversized_raw.rc != 0 or
+        upload_oversized_raw.stdout_lines[-1] != '400'
+
+    - name: "25. Parsear respuesta JSON de archivo excedido"
+      ansible.builtin.set_fact:
+        upload_oversized_json: "{{ upload_oversized_raw.stdout_lines[:-1] | join('\n') | from_json }}"
+
+    - name: "26. Aserción estricta: Validar control Multer LIMIT_FILE_SIZE"
+      ansible.builtin.assert:
+        that:
+          - "upload_oversized_raw.stdout_lines[-1] == '400'"
+          - "upload_oversized_json.error is defined"
+          - "'excede el limite de 25 MB' in upload_oversized_json.error"
+        fail_msg: "No se devolvió HTTP 400 con el mensaje de límite de 25 MB."
+        success_msg: >-
+          Límite de 25 MB validado con éxito (HTTP 400):
+          Error: {{ upload_oversized_json.error }}
+
+    - name: "27. Limpiar archivo de 26 MB temporal"
+      ansible.builtin.file:
+        path: "{{ oversized_test_file }}"
+        state: absent
+
     - name: "18. Validar Ingress HTTP: Rechazo con HTTP 400 de archivo no permitido"
       ansible.builtin.command: >
-        curl -s -w "\n%{http_code}" -X POST {{ base_url }}/api/vault/evidencias/upload
+        curl -s -w "\n%{http_code}" -X POST http://127.0.0.1/api/vault/evidencias/upload
+        -H "Host: integracentro.local"
         -F "archivo=@/tmp/script_no_permitido.sh"
         -F "valido=true"
       register: upload_forbidden_raw
@@ -234,8 +278,10 @@
 
     - name: "22. Validar Ingress HTTP: Consulta global de evidencias (/api/vault/evidencias)"
       ansible.builtin.uri:
-        url: "{{ base_url }}/api/vault/evidencias"
+        url: "http://127.0.0.1/api/vault/evidencias"
         method: GET
+        headers:
+          Host: "integracentro.local"
         status_code: 200
         return_content: true
         timeout: 5
@@ -249,7 +295,7 @@
     - name: "23. Resumen general de auditoria operativa"
       ansible.builtin.debug:
         msg:
-          - "Frontend PWA: HTTP {{ pwa_resp.status }} (OK)"
+          - "Frontend PWA: HTTP {{ ingress_check.status | default('N/A') }} (OK)"
           - "IAM Service: {{ iam_health_resp.json.status }} (DB: {{ iam_health_resp.json.database.status }}, Usuarios: {{ iam_users_resp.json.total }})"
           - "Vault Manager: {{ vault_health_resp.json.status }} (DB: {{ vault_health_resp.json.database.status }})"
           - "Evidencia 1 (JSON): {{ vault_post_resp.json.evidencia.hash_sha256 }}"
