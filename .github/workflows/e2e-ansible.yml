@@ -5,7 +5,7 @@ on:
     branches: [ "main", "master" ]
   pull_request:
     branches: [ "main", "master" ]
-  workflow_dispatch: # Permite ejecutarlo manualmente desde GitHub
+  workflow_dispatch:
 
 jobs:
   e2e-testing:
@@ -24,17 +24,19 @@ jobs:
 
       - name: 4. Desplegar la infraestructura (IntegraCentro)
         run: |
-          # Aquí debes colocar el comando que despliega tus pods y postgres
-          # Ejemplo: kubectl apply -k infra/k8s/overlays/prod
-          echo "Reemplaza esto con tu comando kubectl apply..."
+          # Crear el namespace en el entorno virgen de GitHub Actions
+          kubectl create namespace integracentro-prod
           
-          # Esperar a que los pods básicos estén listos
-          sleep 15 
+          # Aplicar los manifiestos
+          kubectl apply -f infra/k8s/
+          
+          # Dar tiempo a que los servicios y pods inicien
+          sleep 25
 
       - name: 5. Iniciar Minikube Tunnel en segundo plano
         run: |
           sudo nohup minikube tunnel > tunnel.log 2>&1 &
-          sleep 10 # Dar tiempo a que el puente de red se establezca
+          sleep 10
 
       - name: 6. Ejecutar Playbook: IAM y MFA Pipeline
         run: ansible-playbook infra/ansible/playbooks/integracentro-iam-pipeline.yml
